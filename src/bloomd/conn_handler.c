@@ -22,17 +22,19 @@
 #define INTERNAL_ERROR() (handle_client_resp(handle->conn, (char*)INTERNAL_ERR, INTERNAL_ERR_LEN))
 
 /* Static method declarations */
-static void handle_check_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_check_multi_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_set_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_set_multi_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_create_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_drop_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_close_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_clear_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_list_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_info_cmd(bloom_conn_handler *handle, char *args, int args_len);
-static void handle_flush_cmd(bloom_conn_handler *handle, char *args, int args_len);
+static void handle_check_cmd       (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_check_multi_cmd (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_get_cmd         (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_get_multi_cmd   (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_set_cmd         (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_set_multi_cmd   (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_create_cmd      (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_drop_cmd        (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_close_cmd       (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_clear_cmd       (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_list_cmd        (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_info_cmd        (bloom_conn_handler *handle, char *args, int args_len);
+static void handle_flush_cmd       (bloom_conn_handler *handle, char *args, int args_len);
 
 static int handle_multi_response(bloom_conn_handler *handle, int cmd_res, int num_keys, char *res_buf, int end_of_input);
 static inline void handle_client_resp(bloom_conn_info *conn, char* resp_mesg, int resp_len);
@@ -60,11 +62,14 @@ void init_conn_handler() {
  * @return 0 on success.
  */
 int handle_client_connect(bloom_conn_handler *handle) {
+    
     // Look for the next command line
     char *buf, *arg_buf;
     int buf_len, arg_buf_len, should_free;
     int status;
+
     while (1) {
+
         status = extract_to_terminator(handle->conn, '\n', &buf, &buf_len, &should_free);
         if (status == -1) break; // Return if no command is available
 
@@ -73,41 +78,23 @@ int handle_client_connect(bloom_conn_handler *handle) {
 
         // Handle an error or unknown response
         switch(type) {
-            case CHECK:
-                handle_check_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case CHECK_MULTI:
-                handle_check_multi_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case SET:
-                handle_set_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case SET_MULTI:
-                handle_set_multi_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case CREATE:
-                handle_create_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case DROP:
-                handle_drop_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case CLOSE:
-                handle_close_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case CLEAR:
-                handle_clear_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case LIST:
-                handle_list_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case INFO:
-                handle_info_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            case FLUSH:
-                handle_flush_cmd(handle, arg_buf, arg_buf_len);
-                break;
-            default:
-                handle_client_err(handle->conn, (char*)&CMD_NOT_SUP, CMD_NOT_SUP_LEN);
+            
+            case CHECK:       handle_check_cmd       (handle, arg_buf, arg_buf_len); break;
+            case CHECK_MULTI: handle_check_multi_cmd (handle, arg_buf, arg_buf_len); break;
+            case GET:         handle_get_cmd         (handle, arg_buf, arg_buf_len); break;
+            case GET_MULTI:   handle_get_multi_cmd   (handle, arg_buf, arg_buf_len); break;
+            case SET:         handle_set_cmd         (handle, arg_buf, arg_buf_len); break;
+            case SET_MULTI:   handle_set_multi_cmd   (handle, arg_buf, arg_buf_len); break;
+            case CREATE:      handle_create_cmd      (handle, arg_buf, arg_buf_len); break;
+            case DROP:        handle_drop_cmd        (handle, arg_buf, arg_buf_len); break;
+            case CLOSE:       handle_close_cmd       (handle, arg_buf, arg_buf_len); break;
+            case CLEAR:       handle_clear_cmd       (handle, arg_buf, arg_buf_len); break;
+            case LIST:        handle_list_cmd        (handle, arg_buf, arg_buf_len); break;
+            case INFO:        handle_info_cmd        (handle, arg_buf, arg_buf_len); break;
+            case FLUSH:       handle_flush_cmd       (handle, arg_buf, arg_buf_len); break;
+            
+            default:          
+                handle_client_err(handle->conn, (char*)&CMD_NOT_SUP, CMD_NOT_SUP_LEN); 
                 break;
         }
 
@@ -132,8 +119,11 @@ void periodic_update(bloom_conn_handler *handle) {
  * on a filter name and a single key, responses are handled using
  * handle_multi_response.
  */
-static void handle_filt_key_cmd(bloom_conn_handler *handle, char *args, int args_len,
-        int(*filtmgr_func)(bloom_filtmgr *, char*, char **, int, char*)) {
+static void handle_filt_key_cmd(
+    bloom_conn_handler *handle, 
+    char *args, int args_len,
+    int(*filtmgr_func)(bloom_filtmgr *, char*, char **, int, char*)) {
+    
     #define CHECK_ARG_ERR() { \
         handle_client_err(handle->conn, (char*)&FILT_KEY_NEEDED, FILT_KEY_NEEDED_LEN); \
         return; \
@@ -160,6 +150,10 @@ static void handle_check_cmd(bloom_conn_handler *handle, char *args, int args_le
     handle_filt_key_cmd(handle, args, args_len, filtmgr_check_keys);
 }
 
+static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len) {
+    handle_filt_key_cmd(handle, args, args_len, filtmgr_get_keys);
+}
+
 static void handle_set_cmd(bloom_conn_handler *handle, char *args, int args_len) {
     handle_filt_key_cmd(handle, args, args_len, filtmgr_set_keys);
 }
@@ -170,8 +164,11 @@ static void handle_set_cmd(bloom_conn_handler *handle, char *args, int args_len)
  * on a filter name and multiple keys, responses are handled using
  * handle_multi_response.
  */
-static void handle_filt_multi_key_cmd(bloom_conn_handler *handle, char *args, int args_len,
-        int(*filtmgr_func)(bloom_filtmgr *, char*, char **, int, char*)) {
+static void handle_filt_multi_key_cmd(
+    bloom_conn_handler *handle, 
+    char *args, int args_len,
+    int(*filtmgr_func)(bloom_filtmgr *, char*, char **, int, char*)) {
+
     #define CHECK_ARG_ERR() { \
         handle_client_err(handle->conn, (char*)&FILT_KEY_NEEDED, FILT_KEY_NEEDED_LEN); \
         return; \
@@ -225,6 +222,10 @@ static void handle_filt_multi_key_cmd(bloom_conn_handler *handle, char *args, in
 
 static void handle_check_multi_cmd(bloom_conn_handler *handle, char *args, int args_len) {
     handle_filt_multi_key_cmd(handle, args, args_len, filtmgr_check_keys);
+}
+
+static void handle_get_multi_cmd(bloom_conn_handler *handle, char *args, int args_len) {
+    handle_filt_multi_key_cmd(handle, args, args_len, filtmgr_get_keys);
 }
 
 static void handle_set_multi_cmd(bloom_conn_handler *handle, char *args, int args_len) {
@@ -483,7 +484,10 @@ storage %llu\n",
     assert(res != -1);
 }
 
-static void handle_info_cmd(bloom_conn_handler *handle, char *args, int args_len) {
+static void handle_info_cmd(
+    bloom_conn_handler *handle, 
+    char *args, int args_len) {
+    
     // If we have no args, complain.
     if (!args) {
         handle_client_err(handle->conn, (char*)&FILT_NEEDED, FILT_NEEDED_LEN);
@@ -662,29 +666,20 @@ static conn_cmd_type determine_client_command(char *cmd_buf, int buf_len, char *
     // Search for the command
     conn_cmd_type type = UNKNOWN;
     #define CMD_MATCH(name) (strcmp(name, cmd_buf) == 0)
-    if (CMD_MATCH("c") || CMD_MATCH("check")) {
-        type = CHECK;
-    } else if (CMD_MATCH("m") || CMD_MATCH("multi")) {
-        type = CHECK_MULTI;
-    } else if (CMD_MATCH("s") || CMD_MATCH("set")) {
-        type = SET;
-    } else if (CMD_MATCH("b") || CMD_MATCH("bulk")) {
-        type = SET_MULTI;
-    } else if (CMD_MATCH("list")) {
-        type = LIST;
-    } else if (CMD_MATCH("info")) {
-        type = INFO;
-    } else if (CMD_MATCH("create")) {
-        type = CREATE;
-    } else if (CMD_MATCH("drop")) {
-        type = DROP;
-    } else if (CMD_MATCH("close")) {
-        type = CLOSE;
-    } else if (CMD_MATCH("clear")) {
-        type = CLEAR;
-    } else if (CMD_MATCH("flush")) {
-        type = FLUSH;
-    }
+
+    if      (CMD_MATCH("check") || CMD_MATCH("c")) { type = CHECK;       } 
+    else if (CMD_MATCH("multi") || CMD_MATCH("m")) { type = CHECK_MULTI; } 
+    else if (CMD_MATCH("get")   || CMD_MATCH("g")) { type = GET;         } 
+    else if (CMD_MATCH("getm")  || CMD_MATCH("a")) { type = GET_MULTI;   } 
+    else if (CMD_MATCH("set")   || CMD_MATCH("s")) { type = SET;         } 
+    else if (CMD_MATCH("bulk")  || CMD_MATCH("b")) { type = SET_MULTI;   } 
+    else if (CMD_MATCH("list")                   ) { type = LIST;        } 
+    else if (CMD_MATCH("info")                   ) { type = INFO;        } 
+    else if (CMD_MATCH("create")                 ) { type = CREATE;      } 
+    else if (CMD_MATCH("drop")                   ) { type = DROP;        } 
+    else if (CMD_MATCH("close")                  ) { type = CLOSE;       } 
+    else if (CMD_MATCH("clear")                  ) { type = CLEAR;       } 
+    else if (CMD_MATCH("flush")                  ) { type = FLUSH;       }
 
     return type;
 }

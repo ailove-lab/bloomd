@@ -67,6 +67,8 @@ typedef enum {
     UNKNOWN = 0,    // Unrecognized command
     CHECK,          // Check a single key
     CHECK_MULTI,    // Check multiple space-seperated keys
+    GET,
+    GET_MULTI,
     SET,            // Set a single key
     SET_MULTI,      // Set multiple space-seperated keys
     LIST,           // List filters
