@@ -25,7 +25,6 @@
 static void handle_check_cmd       (bloom_conn_handler *handle, char *args, int args_len);
 static void handle_check_multi_cmd (bloom_conn_handler *handle, char *args, int args_len);
 static void handle_get_cmd         (bloom_conn_handler *handle, char *args, int args_len);
-static void handle_get_multi_cmd   (bloom_conn_handler *handle, char *args, int args_len);
 static void handle_set_cmd         (bloom_conn_handler *handle, char *args, int args_len);
 static void handle_set_multi_cmd   (bloom_conn_handler *handle, char *args, int args_len);
 static void handle_create_cmd      (bloom_conn_handler *handle, char *args, int args_len);
@@ -82,7 +81,6 @@ int handle_client_connect(bloom_conn_handler *handle) {
             case CHECK:       handle_check_cmd       (handle, arg_buf, arg_buf_len); break;
             case CHECK_MULTI: handle_check_multi_cmd (handle, arg_buf, arg_buf_len); break;
             case GET:         handle_get_cmd         (handle, arg_buf, arg_buf_len); break;
-            case GET_MULTI:   handle_get_multi_cmd   (handle, arg_buf, arg_buf_len); break;
             case SET:         handle_set_cmd         (handle, arg_buf, arg_buf_len); break;
             case SET_MULTI:   handle_set_multi_cmd   (handle, arg_buf, arg_buf_len); break;
             case CREATE:      handle_create_cmd      (handle, arg_buf, arg_buf_len); break;
@@ -148,10 +146,6 @@ static void handle_filt_key_cmd(
 
 static void handle_check_cmd(bloom_conn_handler *handle, char *args, int args_len) {
     handle_filt_key_cmd(handle, args, args_len, filtmgr_check_keys);
-}
-
-static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len) {
-    handle_filt_key_cmd(handle, args, args_len, filtmgr_get_keys);
 }
 
 static void handle_set_cmd(bloom_conn_handler *handle, char *args, int args_len) {
@@ -222,10 +216,6 @@ static void handle_filt_multi_key_cmd(
 
 static void handle_check_multi_cmd(bloom_conn_handler *handle, char *args, int args_len) {
     handle_filt_multi_key_cmd(handle, args, args_len, filtmgr_check_keys);
-}
-
-static void handle_get_multi_cmd(bloom_conn_handler *handle, char *args, int args_len) {
-    handle_filt_multi_key_cmd(handle, args, args_len, filtmgr_get_keys);
 }
 
 static void handle_set_multi_cmd(bloom_conn_handler *handle, char *args, int args_len) {
@@ -395,6 +385,8 @@ static void list_filter_cb(void *data, char *filter_name, bloom_filter *filter) 
 }
 
 static void handle_list_cmd(bloom_conn_handler *handle, char *args, int args_len) {
+
+    // cheat gcc to compile without warnings
     (void)args_len;
 
     // List all the filters
@@ -442,6 +434,107 @@ static void handle_list_cmd(bloom_conn_handler *handle, char *args, int args_len
 }
 
 
+/* get keys throug all filters */
+
+static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len) {
+    
+    #define CHECK_KEY_ERR() { \
+        handle_client_err(handle->conn, (char*)&KEY_NEEDED, FILT_KEY_NEEDED_LEN); \
+        return; \
+    }    
+
+    // If we have no args, complain.
+    if (!args) CHECK_KEY_ERR();
+
+    // printf("args: %.*s\n", args_len, args);
+
+    // Scan past the key name
+    // char *key;
+    // int key_len;
+    // int err = buffer_after_terminator(args, args_len, ' ', &key, &key_len);
+    // if (err) CHECK_KEY_ERR();
+
+    // List all the filters
+    bloom_filter_list_head *head;
+    int res = filtmgr_list_filters(handle->mgr, NULL, &head);
+    if (res != 0) {
+        INTERNAL_ERROR();
+        return;
+    }
+
+    // fetch keys from all
+    // filters might get deleted in the process
+     // = head->head;
+    // while (node) {
+
+    //     printf("%s: %.*s\n", node->filter_name, args_len, args);
+
+      
+    //     node = node->next;
+    // }
+    
+    // setup list node
+    bloom_filter_list *node;
+
+    // Setup the buffers
+    char *key_buf[MULTI_OP_SIZE];
+    char result_buf[MULTI_OP_SIZE];
+
+    // Scan all the keys
+    char *key = args;
+    int key_len = args_len;
+
+    // Parse any options
+    char *curr_key = key;
+    int index = 0;
+    
+    #define HAS_ANOTHER_KEY() (curr_key && *curr_key != '\0')
+    while (HAS_ANOTHER_KEY()) {
+        // Adds a zero terminator to the current key, scans forward
+        buffer_after_terminator(key, key_len, ' ', &key, &key_len);
+
+        // Set the key
+        key_buf[index] = curr_key;
+
+        // Advance to the next key
+        curr_key = key;
+        index++;
+        
+        // If we have filled the buffer, check now
+        if (index == MULTI_OP_SIZE) {
+            //  Handle the keys now
+            node = head->head;
+            while(node) {
+                int res = filtmgr_check_keys(handle->mgr, node->filter_name, (char**)&key_buf, index, (char*)&result_buf);
+                res = handle_multi_response(handle, res, index, (char*)&result_buf, !HAS_ANOTHER_KEY());
+                if (res) return;
+                node = node->next;
+            }
+
+            // Reset the index
+            index = 0;
+        }
+    }
+
+    // Handle any remaining keys
+    if (index) {
+        node = head->head;
+        while(node) {
+            int res = filtmgr_check_keys(handle->mgr, node->filter_name, key_buf, index, result_buf);
+            handle_multi_response(handle, res, index, (char*)&result_buf, 1);
+            node = node->next;
+        }
+    }
+
+    // Respond
+    handle_client_resp(handle->conn, (char*)DONE_RESP, DONE_RESP_LEN);
+
+    // Cleanup
+    filtmgr_cleanup_list(head);
+}
+
+
+
 // Callback invoked by list command to create an output
 // line for each filter. We hold a filter handle which we
 // can use to get some info about it
@@ -484,10 +577,7 @@ storage %llu\n",
     assert(res != -1);
 }
 
-static void handle_info_cmd(
-    bloom_conn_handler *handle, 
-    char *args, int args_len) {
-    
+static void handle_info_cmd(bloom_conn_handler *handle, char *args, int args_len) {
     // If we have no args, complain.
     if (!args) {
         handle_client_err(handle->conn, (char*)&FILT_NEEDED, FILT_NEEDED_LEN);
@@ -533,6 +623,7 @@ static void handle_info_cmd(
 
 
 static void handle_flush_cmd(bloom_conn_handler *handle, char *args, int args_len) {
+    
     // If we have a specfic filter, use filt_cmd
     if (args) {
         handle_filt_cmd(handle, args, args_len, filtmgr_flush_filter);
@@ -670,7 +761,6 @@ static conn_cmd_type determine_client_command(char *cmd_buf, int buf_len, char *
     if      (CMD_MATCH("check") || CMD_MATCH("c")) { type = CHECK;       } 
     else if (CMD_MATCH("multi") || CMD_MATCH("m")) { type = CHECK_MULTI; } 
     else if (CMD_MATCH("get")   || CMD_MATCH("g")) { type = GET;         } 
-    else if (CMD_MATCH("getm")  || CMD_MATCH("a")) { type = GET_MULTI;   } 
     else if (CMD_MATCH("set")   || CMD_MATCH("s")) { type = SET;         } 
     else if (CMD_MATCH("bulk")  || CMD_MATCH("b")) { type = SET_MULTI;   } 
     else if (CMD_MATCH("list")                   ) { type = LIST;        } 

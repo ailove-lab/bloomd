@@ -18,6 +18,9 @@ static const int UNEXPECTED_ARGS_LEN = sizeof(UNEXPECTED_ARGS) - 1;
 static const char FILT_KEY_NEEDED[] = "Must provide filter name and key";
 static const int FILT_KEY_NEEDED_LEN = sizeof(FILT_KEY_NEEDED) - 1;
 
+static const char KEY_NEEDED[] = "Must provide key name";
+static const int KEY_NEEDED_LEN = sizeof(KEY_NEEDED) - 1;
+
 static const char FILT_NEEDED[] = "Must provide filter name";
 static const int FILT_NEEDED_LEN = sizeof(FILT_NEEDED) - 1;
 
@@ -42,16 +45,16 @@ static const int DONE_RESP_LEN = sizeof(DONE_RESP) - 1;
 static const char EXISTS_RESP[] = "Exists\n";
 static const int EXISTS_RESP_LEN = sizeof(EXISTS_RESP) - 1;
 
-static const char YES_SPACE[] = "Yes ";
+static const char YES_SPACE[] = "1 ";
 static const int YES_SPACE_LEN = sizeof(YES_SPACE) - 1;
 
-static const char NO_SPACE[] = "No ";
+static const char NO_SPACE[] = "0 ";
 static const int NO_SPACE_LEN = sizeof(NO_SPACE) - 1;
 
-static const char YES_RESP[] = "Yes\n";
+static const char YES_RESP[] = "1\n";
 static const int YES_RESP_LEN = sizeof(YES_RESP) - 1;
 
-static const char NO_RESP[] = "No\n";
+static const char NO_RESP[] = "0\n";
 static const int NO_RESP_LEN = sizeof(NO_RESP) - 1;
 
 static const char NEW_LINE[] = "\n";
@@ -67,8 +70,7 @@ typedef enum {
     UNKNOWN = 0,    // Unrecognized command
     CHECK,          // Check a single key
     CHECK_MULTI,    // Check multiple space-seperated keys
-    GET,
-    GET_MULTI,
+    GET,            // Check all filters for key[s]
     SET,            // Set a single key
     SET_MULTI,      // Set multiple space-seperated keys
     LIST,           // List filters
