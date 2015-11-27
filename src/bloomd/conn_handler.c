@@ -446,14 +446,6 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
     // If we have no args, complain.
     if (!args) CHECK_KEY_ERR();
 
-    // printf("args: %.*s\n", args_len, args);
-
-    // Scan past the key name
-    // char *key;
-    // int key_len;
-    // int err = buffer_after_terminator(args, args_len, ' ', &key, &key_len);
-    // if (err) CHECK_KEY_ERR();
-
     // List all the filters
     bloom_filter_list_head *head;
     int res = filtmgr_list_filters(handle->mgr, NULL, &head);
@@ -461,17 +453,6 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
         INTERNAL_ERROR();
         return;
     }
-
-    // fetch keys from all
-    // filters might get deleted in the process
-     // = head->head;
-    // while (node) {
-
-    //     printf("%s: %.*s\n", node->filter_name, args_len, args);
-
-      
-    //     node = node->next;
-    // }
     
     // setup list node
     bloom_filter_list *node;
@@ -489,41 +470,56 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
     int index = 0;
     
     #define HAS_ANOTHER_KEY() (curr_key && *curr_key != '\0')
-    while (HAS_ANOTHER_KEY()) {
-        // Adds a zero terminator to the current key, scans forward
-        buffer_after_terminator(key, key_len, ' ', &key, &key_len);
-
-        // Set the key
-        key_buf[index] = curr_key;
-
-        // Advance to the next key
-        curr_key = key;
-        index++;
+    
+    node = head->head;
+    while(node) {
         
-        // If we have filled the buffer, check now
-        if (index == MULTI_OP_SIZE) {
-            //  Handle the keys now
-            node = head->head;
-            while(node) {
+        int filter_length = strlen(node->filter_name);
+        char filter_space[filter_length+2];
+        strcpy(filter_space, node->filter_name);
+
+        filter_space[filter_length  ] = ' ';
+        filter_space[filter_length+1] = '\0';
+
+        handle_client_resp(handle->conn, filter_space, filter_length+1);
+
+        while (HAS_ANOTHER_KEY()) {
+            // Adds a zero terminator to the current key, scans forward
+            buffer_after_terminator(key, key_len, ' ', &key, &key_len);
+
+            // Set the key
+            key_buf[index] = curr_key;
+
+            // Advance to the next key
+            curr_key = key;
+            index++;
+            
+            // If we have filled the buffer, check now
+            if (index == MULTI_OP_SIZE) {
+                //  Handle the keys now
                 int res = filtmgr_check_keys(handle->mgr, node->filter_name, (char**)&key_buf, index, (char*)&result_buf);
                 res = handle_multi_response(handle, res, index, (char*)&result_buf, !HAS_ANOTHER_KEY());
                 if (res) return;
-                node = node->next;
+
+                // Reset the index
+                index = 0;
             }
-
-            // Reset the index
-            index = 0;
         }
-    }
 
-    // Handle any remaining keys
-    if (index) {
-        node = head->head;
-        while(node) {
+        // Handle any remaining keys
+        if (index) {
             int res = filtmgr_check_keys(handle->mgr, node->filter_name, key_buf, index, result_buf);
             handle_multi_response(handle, res, index, (char*)&result_buf, 1);
-            node = node->next;
         }
+
+        // revert args termintators back to \32 because buffer_affter_terminatoir() changes it
+        for(int i=0; i<args_len-1;i++) if(args[i]=='\0') args[i] = ' ';
+        
+        curr_key = key = args;
+        key_len = args_len;
+        index = 0;
+
+        node = node->next;
     }
 
     // Respond
