@@ -469,49 +469,60 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
     char *curr_key = key;
     int index = 0;
     
-    #define HAS_ANOTHER_KEY() (curr_key && *curr_key != '\0')
+    // count filters (segmets)
+    int filters_count = 0;
+    node = head->head;
+    while(node) { filters_count++; node = node->next; }
     
+    int keys_count = 1;
+    for(int i=0; i<args_len; i++) if(args[i] == ' ') keys_count++;
+    
+    // result matrix
+    char *key_filter_mat[keys_count][filters_count];
+    memset(key_filter_mat, 0, sizeof(key_filter_mat));
+
+    // counter for positive rezults
+    int key_filter_len[keys_count];
+    memset(key_filter_len, 0, sizeof(key_filter_len));
+
     node = head->head;
     while(node) {
         
-        int filter_length = strlen(node->filter_name);
-        char filter_space[filter_length+2];
-        strcpy(filter_space, node->filter_name);
+        int j = 0;
 
-        filter_space[filter_length  ] = ' ';
-        filter_space[filter_length+1] = '\0';
-
-        handle_client_resp(handle->conn, filter_space, filter_length+1);
-
+        // Check buffer of keys 
+        #define REQUEST_BUF() {                                                 \
+            int err = filtmgr_check_keys(                                       \
+                handle->mgr,                                                    \
+                node->filter_name,                                              \
+                (char**)&key_buf,                                               \
+                index,                                                          \
+                (char*)&result_buf);                                            \
+            if (err) {                                                          \
+                INTERNAL_ERROR();                                               \
+                return;                                                         \
+            };                                                                  \
+            for(int i=0; i<index; i++, j++) {                                   \
+                if(result_buf[i] == 1)                                          \
+                    key_filter_mat[j][key_filter_len[j]++] = node->filter_name; \
+            };                                                                  \
+            index = 0;                                                          \
+        }
+        #define HAS_ANOTHER_KEY() (curr_key && *curr_key != '\0')
         while (HAS_ANOTHER_KEY()) {
             // Adds a zero terminator to the current key, scans forward
             buffer_after_terminator(key, key_len, ' ', &key, &key_len);
-
             // Set the key
             key_buf[index] = curr_key;
-
             // Advance to the next key
             curr_key = key;
-            index++;
-            
             // If we have filled the buffer, check now
-            if (index == MULTI_OP_SIZE) {
-                //  Handle the keys now
-                int res = filtmgr_check_keys(handle->mgr, node->filter_name, (char**)&key_buf, index, (char*)&result_buf);
-                res = handle_multi_response(handle, res, index, (char*)&result_buf, !HAS_ANOTHER_KEY());
-                if (res) return;
-
-                // Reset the index
-                index = 0;
-            }
+            if (index++ == MULTI_OP_SIZE) REQUEST_BUF();
         }
 
         // Handle any remaining keys
-        if (index) {
-            int res = filtmgr_check_keys(handle->mgr, node->filter_name, key_buf, index, result_buf);
-            handle_multi_response(handle, res, index, (char*)&result_buf, 1);
-        }
-
+        if (index) REQUEST_BUF();
+        
         // revert args termintators back to \32 because buffer_affter_terminatoir() changes it
         for(int i=0; i<args_len-1;i++) if(args[i]=='\0') args[i] = ' ';
         
@@ -522,6 +533,29 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
         node = node->next;
     }
 
+    // collect key names
+    char  *key_names[keys_count];
+    char **key_names_it = key_names;
+    while (HAS_ANOTHER_KEY()) {            
+        *(key_names_it++) = key;
+        buffer_after_terminator(key, key_len, ' ', &key, &key_len);
+        curr_key = key;
+    }
+
+    // send key filters
+    char send_buf[2048] = {0};
+    for(int i=0; i<keys_count; i++) {
+        strcat(send_buf, key_names[i]);
+        int l = key_filter_len[i]-1;
+        strcat(send_buf, l>=0 ? "\t" : "\n");
+        for(int j=0; j<=l; j++) {
+            strcat(send_buf, key_filter_mat[i][j]);
+            strcat(send_buf, j!=l ? "/" : "\n");
+        }
+    }
+
+    handle_client_resp(handle->conn, send_buf, strlen(send_buf));
+    
     // Respond
     handle_client_resp(handle->conn, (char*)DONE_RESP, DONE_RESP_LEN);
 

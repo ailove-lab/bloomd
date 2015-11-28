@@ -16,7 +16,7 @@ envtest.Program('test_libbloom_runner', Glob("tests/libbloom/*.c"), LIBS=["check
 envinih = Environment(CPATH = ['deps/inih/'], CFLAGS="-O2")
 inih = envinih.Library('inih', Glob("deps/inih/*.c"))
 
-envbloomd_with_err = Environment(CCFLAGS = '-std=c99 -D_GNU_SOURCE -Wall -Wextra -Werror -O2 -pthread -Isrc/bloomd/ -Ideps/inih/ -Ideps/libev/ -Isrc/libbloom/')
+envbloomd_with_err = Environment(CCFLAGS = '-g -std=c99 -D_GNU_SOURCE -Wall -Wextra -Werror -O0 -pthread -Isrc/bloomd/ -Ideps/inih/ -Ideps/libev/ -Isrc/libbloom/')
 envbloomd_without_unused_err = Environment(CCFLAGS = '-std=c99 -D_GNU_SOURCE -Wall -Wextra -Wno-unused-function -Wno-unused-result -Werror -O2 -pthread -Isrc/bloomd/ -Ideps/inih/ -Ideps/libev/ -Isrc/libbloom/')
 envbloomd_without_err = Environment(CCFLAGS = '-std=c99 -D_GNU_SOURCE -O2 -pthread -Isrc/bloomd/ -Ideps/inih/ -Ideps/libev/ -Isrc/libbloom/')
 
