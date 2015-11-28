@@ -1,5 +1,38 @@
-Bloomd [![Build Status](https://travis-ci.org/armon/bloomd.png?branch=master)](https://travis-ci.org/armon/bloomd)
-=========
+About fork
+==========
+
+This fork solves an specific task. 
+It has an additional command `get|g`, which checks all bloom fiters for specified keys.
+
+
+Example:
+
+    $ create S1
+    Done
+    
+    $ create S2
+    Done
+    
+    $ create S3
+    Done
+    
+    $ b S1 K1 K2 K3
+    1 1 1
+    
+    $ b S2 K2 K3
+    1 1
+    
+    $ b S3 K3
+    1
+    
+    $ g K1 K2 K3
+    K1  S1
+    K2  S1/S2
+    K3  S1/S2/S3
+
+
+Bloomd 
+======
 
 Bloomd is a high-performance C server which is used
 to expose bloom filters and operations over them to
