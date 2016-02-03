@@ -1,2 +1,2 @@
 #!/bin/bash
-cat ../data/001k.r | nc localhost 8763
+cat ../data/001k.r | nc localhost 8673

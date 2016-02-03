@@ -154,7 +154,7 @@ static void parser(void *blk, long i, int tid) {
         *tab = 0;                    // split key/data
         
         seg  = strrchr(tab+1, ' ');   // find segments
-        *seg = 0;                     // sukot data to flags/segments
+        *seg = 0;                     // data to flags/segments
         seg++;
 
         // iterate through segments
@@ -167,7 +167,7 @@ static void parser(void *blk, long i, int tid) {
             keys *ks;
             ki = kh_put(hash, s2k, seg, &ret);
             
-            if(ret == 0) {
+            if(ret == 0) { 
                 ks = kh_value(s2k, ki);
             } else if(ret == 1) {
                 ks = keys_new();
