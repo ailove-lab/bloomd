@@ -67,7 +67,6 @@ void keys_add(keys *k, char *v) {
     k->crs += l+1;
     k->crs[-1] = ' ';
     k->crs[ 0] = 0;
-
 }
 
 void loadFile(char *filename, block *b) {
@@ -132,6 +131,9 @@ static void parser(void *blk, long i, int tid) {
     block *b = (block*) blk;
     block sub = {NULL, 0};
     getSubBlock(b, &sub, i, nthr);
+
+    // printf("%.*s\n", sub.length, sub.start);
+    
     if(sub.start == NULL) return;
 
     khash_t(hash) *s2k = kh_init(hash);
@@ -165,8 +167,8 @@ static void parser(void *blk, long i, int tid) {
             int ret;
             khiter_t ki;
             keys *ks;
-            ki = kh_put(hash, s2k, seg, &ret);
-            
+            ki = kh_put(hash, s2k, s, &ret);
+
             if(ret == 0) { 
                 ks = kh_value(s2k, ki);
             } else if(ret == 1) {
@@ -189,7 +191,7 @@ static void parser(void *blk, long i, int tid) {
             printf("create %s\n", key);
             printf("b %s %s\n", key, kh_value(s2k, ki)->buf);
         }
-
+    
     }
 
     // FREE

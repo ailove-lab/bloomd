@@ -1,2 +1,2 @@
 #!/bin/bash
-./pack ../data/001k
+./everse ../data/001k
