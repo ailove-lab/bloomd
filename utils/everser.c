@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 #include <assert.h>
 #include <sys/time.h>
 
@@ -44,13 +45,11 @@ dstr* dstr_new() {
 
 static struct timeval tm1;
 
-static inline void start()
-{
+static inline void timer_start() {
     gettimeofday(&tm1, NULL);
 }
 
-static inline void stop()
-{
+static inline void timer_stop() {
     struct timeval tm2;
     gettimeofday(&tm2, NULL);
 
@@ -228,6 +227,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "//// LOADING ////\n");
     
+    timer_start();    
     block b = {NULL, 0};
     
     loadFile(argv[1], &b);
@@ -251,19 +251,20 @@ int main(int argc, char *argv[]) {
     };
     // block s = {NULL, 0};
     // getSubBlock(&b, &s, i, bc);
-    
+    timer_stop();
     
     
     fprintf(stderr, "//// MAP ////\n");
     
-    start();
+    timer_start();
     // number of concurent threads, calee(data, iteration, thread id), data, number of iterations
     kt_for(nthr, parser, &d, nthr);
-    stop();
+    timer_stop();
 
     
     fprintf(stderr, "//// REDUCE ////\n");
 
+    timer_start();
     // Summing segment counters
     khash_t(key_int) *seg_cnt = kh_init(key_int);
     for(int i=0; i<nthr; i++) {
@@ -283,16 +284,20 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-
+    timer_stop();
     
     
     fprintf(stderr, "//// OUTPUT ////\n");
 
+    timer_start();
     // segment counters
     for (khiter_t ki=kh_begin(seg_cnt); ki!=kh_end(seg_cnt); ++ki) {
         if (kh_exist(seg_cnt, ki)) {
             char *key = (char*) kh_key(seg_cnt, ki);
-            printf("create %s %lu\n", key, kh_value(seg_cnt, ki));
+            long cnt = kh_value(seg_cnt, ki);
+            long cap = (long) pow(10.0, floor(1.0+log10(cnt)));
+            fprintf(stderr, "// %s %lu -> %lu\n", key, cnt, cap);
+            printf("create %s capacity=%lu\n", key, cap);
         }    
     }
 
@@ -306,7 +311,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-
+    timer_stop();
     
     
     fprintf(stderr, "//// CLEANUP ////\n");
