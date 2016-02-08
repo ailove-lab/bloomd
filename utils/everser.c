@@ -94,6 +94,7 @@ void loadFile(char *filename, block *b) {
      
     fread(b->start, sizeof(char), b->length, infile);
     fclose(infile);
+    
     b->start[b->length  ] = '\n';
     b->start[b->length+1] = '\0';
     b->length += 2;
@@ -315,6 +316,7 @@ int main(int argc, char *argv[]) {
     
     
     fprintf(stderr, "//// CLEANUP ////\n");
+    timer_start();
 
     kh_destroy(key_int, seg_cnt);
     
@@ -331,6 +333,7 @@ int main(int argc, char *argv[]) {
 
     // free file data
     free(b.start);
+    timer_stop();
 
     return 0;
 
