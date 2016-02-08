@@ -23,6 +23,9 @@ typedef struct {
 int nthr;
 
 
+// template for hash type, 
+KHASH_MAP_INIT_STR(hash, int)
+
 keys* keys_new() {
     keys* k = malloc(sizeof(keys));
     if(k == NULL) return NULL;
@@ -93,8 +96,6 @@ void loadFile(char *filename, block *b) {
 
 static int usage(){ printf("usage: stat file\n"); return 1;}
 
-// template for hash type, 
-KHASH_MAP_INIT_STR(hash, int)
 
 static void parse(block *b) {
 

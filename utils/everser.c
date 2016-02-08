@@ -18,13 +18,22 @@ typedef struct {
     char *buf;
     char *crs;
     unsigned int length;
-} keys;
+} dstr;
 
 int nthr;
 
+KHASH_MAP_INIT_STR(key_dstr, dstr*);
+KHASH_MAP_INIT_STR(key_int , unsigned long);
 
-keys* keys_new() {
-    keys* k = malloc(sizeof(keys));
+typedef struct {
+    block              *b;
+    khash_t(key_dstr) **seg_keys;
+    khash_t(key_int ) **seg_cnts;
+
+} data_t;
+
+dstr* dstr_new() {
+    dstr* k = malloc(sizeof(dstr));
     if(k == NULL) return NULL;
     k->buf = malloc(sizeof(char)*256);
     if(k->buf == NULL) {free(k); return NULL;}
@@ -49,12 +58,12 @@ static inline void stop()
     fprintf(stderr, "%llu ms\n", t);
 }
 
-void keys_free(keys* k) {
+void dstr_free(dstr* k) {
     free(k->buf);
     free(k);
 }
 
-void keys_add(keys *k, char *v) {
+void dstr_add(dstr *k, char *v) {
     int l = strlen(v);
     int s = k->crs - k->buf;
     // printf("add %s %d %d\n", v, l, s);
@@ -124,19 +133,15 @@ void getSubBlock(block *blk,
 }
 
 // threaded function
-KHASH_MAP_INIT_STR(hash, keys*)
+static void parser(void *data, long i, int tid) {
 
-static void parser(void *blk, long i, int tid) {
-
-    block *b = (block*) blk;
+    data_t *d = (data_t*)data;
     block sub = {NULL, 0};
-    getSubBlock(b, &sub, i, nthr);
+    getSubBlock(d->b, &sub, i, nthr);
 
     // printf("%.*s\n", sub.length, sub.start);
     
     if(sub.start == NULL) return;
-
-    khash_t(hash) *s2k = kh_init(hash);
 
     char *key, *seg, *tab, *end, *E;
     E = sub.start + sub.length;
@@ -166,42 +171,44 @@ static void parser(void *blk, long i, int tid) {
             
             int ret;
             khiter_t ki;
-            keys *ks;
-            ki = kh_put(hash, s2k, s, &ret);
+            dstr *ks;
 
+            // add key to segment
+            ki = kh_put(key_dstr, d->seg_keys[i], s, &ret);
             if(ret == 0) { 
-                ks = kh_value(s2k, ki);
+                ks = kh_value(d->seg_keys[i], ki);
             } else if(ret == 1) {
-                ks = keys_new();
-                kh_value(s2k, ki) = ks;
+                ks = dstr_new();
+                kh_value(d->seg_keys[i], ki) = ks;
             }
-            keys_add(ks, key);
+            dstr_add(ks, key);
+
+            // incriment segment
+            ki = kh_put(key_int, d->seg_cnts[i], s, &ret);
+            if(ret == 0) { // sgement exists
+                kh_value(d->seg_cnts[i], ki)+=1; 
+            } else if(ret == 1) { // new segment
+                kh_value(d->seg_cnts[i], ki) =1; 
+            }
 
             // next token
-            s = strtok_r(NULL, "/",&sv);
+            s = strtok_r(NULL, "/", &sv);
         }
 
         key = end+1;
     } while (*key!='\0' && key<E);
-
-    // SEND HERE
-    for (khiter_t ki=kh_begin(s2k); ki!=kh_end(s2k); ++ki) {
-        if (kh_exist(s2k, ki)) {
-            char *key = (char*) kh_key(s2k, ki);
-            printf("create %s\n", key);
-            printf("b %s %s\n", key, kh_value(s2k, ki)->buf);
-        }
-    
-    }
-
-    // FREE
-    for (khiter_t ki=kh_begin(s2k); ki!=kh_end(s2k); ++ki) {
-        if (kh_exist(s2k, ki)) keys_free(kh_value(s2k, ki));
-    }
-    kh_destroy(hash, s2k);
     
 }
 
+// static void print_data(data_t *d) {
+//     for (khiter_t ki=kh_begin(d->seg_keys[i]); ki!=kh_end(d->seg_keys[i]); ++ki) {
+//         if (kh_exist(d->seg_keys[i], ki)) {
+//             char *key = (char*) kh_key(d->seg_keys[i], ki);
+//             printf("create %s\n", key);
+//             printf("b %s %s\n", key, kh_value(d->seg_keys[i], ki)->buf);
+//         }    
+//     }
+// }
 
 // n_threads - number of threads
 // function (data, call number, thread id)
@@ -215,17 +222,109 @@ int main(int argc, char *argv[]) {
 
     nthr = sysconf(_SC_NPROCESSORS_ONLN);
 
-    fprintf(stderr, "Processors: %d\n", nthr);
-    block b = {NULL, 0};
+    fprintf(stderr, "PROC: %d\n", nthr);
 
+    
+
+    fprintf(stderr, "//// LOADING ////\n");
+    
+    block b = {NULL, 0};
+    
     loadFile(argv[1], &b);
     assert(b.start != NULL);
-    
+
+    // init hash map storages
+    // seg -> dstr (keys)
+    // seg -> usage couter
+    khash_t(key_dstr) *seg_keys[nthr];
+    khash_t(key_int ) *seg_cnts[nthr];
+
+    for(int i=0; i<nthr; i++) {
+        seg_keys[i] = kh_init(key_dstr);
+        seg_cnts[i] = kh_init(key_int );
+    }
+
+    data_t d = {
+        .b        = &b, 
+        .seg_keys =  seg_keys, 
+        .seg_cnts =  seg_cnts
+    };
     // block s = {NULL, 0};
     // getSubBlock(&b, &s, i, bc);
+    
+    
+    
+    fprintf(stderr, "//// MAP ////\n");
+    
     start();
-    kt_for(nthr, parser, &b, nthr);
+    // number of concurent threads, calee(data, iteration, thread id), data, number of iterations
+    kt_for(nthr, parser, &d, nthr);
     stop();
+
+    
+    fprintf(stderr, "//// REDUCE ////\n");
+
+    // Summing segment counters
+    khash_t(key_int) *seg_cnt = kh_init(key_int);
+    for(int i=0; i<nthr; i++) {
+        fprintf(stderr, "Block %d\n", i);
+        for (khiter_t ki=kh_begin(d.seg_cnts[i]); ki!=kh_end(d.seg_cnts[i]); ++ki) {
+            if (kh_exist(d.seg_cnts[i], ki)) {
+                int ret;
+                char *seg = (char*) kh_key(d.seg_cnts[i], ki);
+                khiter_t si;
+                // printf("%s %lu \n", seg, kh_value(d.seg_cnts[i], ki));
+                si = kh_put(key_int, seg_cnt, seg, &ret);
+                if(ret == 0) { // sеgment exists
+                    kh_value(seg_cnt, si)+= kh_value(d.seg_cnts[i], ki); 
+                } else if(ret == 1) { // new segment
+                    kh_value(seg_cnt, si) = kh_value(d.seg_cnts[i], ki); 
+                }
+            }
+        }
+    }
+
+    
+    
+    fprintf(stderr, "//// OUTPUT ////\n");
+
+    // segment counters
+    for (khiter_t ki=kh_begin(seg_cnt); ki!=kh_end(seg_cnt); ++ki) {
+        if (kh_exist(seg_cnt, ki)) {
+            char *key = (char*) kh_key(seg_cnt, ki);
+            printf("create %s %lu\n", key, kh_value(seg_cnt, ki));
+        }    
+    }
+
+    // segment keys  
+    for(int i=0; i<nthr; i++) {
+        for (khiter_t ki=kh_begin(d.seg_keys[i]); ki!=kh_end(d.seg_keys[i]); ++ki) {
+            if (kh_exist(d.seg_keys[i], ki)) {
+                int ret;
+                char *seg = (char*) kh_key(d.seg_keys[i], ki);
+                printf("b %s %s\n", seg, kh_value(d.seg_keys[i], ki)->buf);
+            }
+        }
+    }
+
+    
+    
+    fprintf(stderr, "//// CLEANUP ////\n");
+
+    kh_destroy(key_int, seg_cnt);
+    
+    // free hash map storages
+    for(int i=0; i<nthr; i++) {    
+        // free dynamic strings
+        for (khiter_t ki=kh_begin(seg_keys[i]); ki!=kh_end(seg_keys[i]); ++ki) {
+            if (kh_exist(seg_keys[i], ki)) dstr_free(kh_value(seg_keys[i], ki));
+        }
+        // free has maps
+        kh_destroy(key_dstr, seg_keys[i]);
+        kh_destroy(key_int , seg_cnts[i]);
+    }
+
+    // free file data
     free(b.start);
 
     return 0;
