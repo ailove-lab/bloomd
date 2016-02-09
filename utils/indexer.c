@@ -389,9 +389,8 @@ int main(int argc, char *argv[]) {
                     khiter_t bi = kh_get(key_bloom, seg_blooms, seg)
                     if (bi != kh_end(seg_blooms)) {
                         struct bloom *bloom = kh_value(seg_blooms, ki);
-                        indexing(bloom,kh_value(d.seg_keys[i], ki)->buf);
+                        indexing(bloom,kh_value(d.seg_keys[i], ki)->buf));
                     }
-                    printf("b %s %s\n", seg, kh_value(d.seg_keys[i], ki)->buf);
                 }
             }
         }
