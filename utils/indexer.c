@@ -9,6 +9,7 @@
 #include <sys/time.h>
 
 #include "khash.h"
+#include "bloom.h"
 
 typedef struct {
     char *start;
@@ -25,7 +26,7 @@ int nthr;
 
 KHASH_MAP_INIT_STR(key_dstr,   dstr*        );
 KHASH_MAP_INIT_STR(key_int ,   unsigned long);
-KHASH_MAP_INIT_STR(key_bloom , stuct bloom* );
+KHASH_MAP_INIT_STR(key_bloom , struct bloom*);
 
 typedef struct {
     block              *b;
@@ -172,7 +173,7 @@ static void parser(void *data, long i, int tid) {
             
             int ret;
             khiter_t ki;
-            dstr *ks;
+            dstr *ks = NULL;
 
             // add key to segment
             ki = kh_put(key_dstr, d->seg_keys[i], s, &ret);
@@ -344,7 +345,7 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Allocate filters\n");
     timer_start();
 
-        khash_t(key_bloom) seg_blooms;
+        khash_t(key_bloom) *seg_bloom = NULL;
         for (khiter_t ki=kh_begin(seg_cnt); ki!=kh_end(seg_cnt); ++ki) {
             if (kh_exist(seg_cnt, ki)) {
 
@@ -357,14 +358,14 @@ int main(int argc, char *argv[]) {
                 // insret
                 int ret;
                 khiter_t ki;
-                struct bloom *bloom
+                struct bloom *bloom;
 
                 // add key to segment
-                ki = kh_put(key_bloom, seg_blooms, key, &ret);
+                ki = kh_put(key_bloom, seg_bloom, key, &ret);
                 if(ret) {
                     bloom = (struct bloom*)malloc(sizeof(struct bloom)); 
-                    bloom_init(b, cap, 0.01);
-                    kh_value(seg_blooms, ki) = bloom;
+                    bloom_init(bloom, cap, 0.01);
+                    kh_value(seg_bloom, ki) = bloom;
                 } else {
                     fprintf(stderr, "Something wrong with %s\n", key);
                     break;
@@ -375,7 +376,7 @@ int main(int argc, char *argv[]) {
             }    
         }
 
-    timer_stop()
+    timer_stop();
 
     fprintf(stderr, "Filling filters\n");
     timer_start();
@@ -386,16 +387,16 @@ int main(int argc, char *argv[]) {
                     // get seg name
                     char *seg = (char*) kh_key(d.seg_keys[i], ki);
                     // get bloom iterator
-                    khiter_t bi = kh_get(key_bloom, seg_blooms, seg)
-                    if (bi != kh_end(seg_blooms)) {
-                        struct bloom *bloom = kh_value(seg_blooms, ki);
-                        indexing(bloom,kh_value(d.seg_keys[i], ki)->buf));
+                    khiter_t bi = kh_get(key_bloom, seg_bloom, seg);
+                    if (bi != kh_end(seg_bloom)) {
+                        struct bloom *bloom = kh_value(seg_bloom, ki);
+                        indexing(bloom,kh_value(d.seg_keys[i], ki)->buf);
                     }
                 }
             }
         }
 
-    timer_stop()
+    timer_stop();
 
 
 
@@ -403,14 +404,14 @@ int main(int argc, char *argv[]) {
     timer_start();
     
         fprintf(stderr, "Free blooms\n");
-        for (khiter_t ki=kh_begin(seg_blooms); ki!=kh_end(seg_blooms); ++ki) {
-            if (kh_exist(seg_blooms, ki)) {
-                struct bloom *b = kh_value(seg_blooms, ki);
+        for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+            if (kh_exist(seg_bloom, ki)) {
+                struct bloom *b = kh_value(seg_bloom, ki);
                 bloom_free(b);
                 free(b);
             }
         }
-        kh_destroy(key_bloom, seg_blooms);
+        kh_destroy(key_bloom, seg_bloom);
 
         fprintf(stderr, "Free integral seg counter\n");
         kh_destroy(key_int, seg_cnt);
