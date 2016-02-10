@@ -227,14 +227,14 @@ static void test_keys(khash_t(key_bloom) *seg_bloom, char *keys) {
     key = strtok_r(keys_dup, " ",&sv);
     while (key!=NULL) {
 
-        fprintf(stderr, "%s:", key);
+        printf("%s:", key);
         for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
             if (kh_exist(seg_bloom, ki)) {
                 struct bloom *b = kh_value(seg_bloom, ki);
                 char* seg = (char*) kh_key(seg_bloom, ki);
                 // 0 - not present; 1 - present or collision; -1 - filter not initialized
                 int s = bloom_check(b, key, strlen(key));
-                if (s) fprintf(stderr, " %s", seg);
+                if (s) printf(" %s", seg);
             }
         }
         fprintf(stderr, "\n");
