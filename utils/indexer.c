@@ -205,9 +205,9 @@ static void parser(void *data, long i, int tid) {
 static void indexing(struct bloom *bloom, char *keys, char *seg) {
     
     // iterate through keys
-    fprintf(stderr, "Bloom: %#010x\n", bloom);
-    fprintf(stderr, "Segment: %s\n", seg);
-    fprintf(stderr, "Keys: %s\n", keys);
+    // fprintf(stderr, "Bloom: %#010x\n", bloom);
+    // fprintf(stderr, "Segment: %s\n", seg);
+    // fprintf(stderr, "Keys: %s\n", keys);
     char *keys_dup, *key, *sv;
     keys_dup = strdup(keys);
     key = strtok_r(keys_dup, " ",&sv);
@@ -222,22 +222,35 @@ static void indexing(struct bloom *bloom, char *keys, char *seg) {
 
 static void test_keys(khash_t(key_bloom) *seg_bloom, char *keys) {
 
+    static unsigned int keys_counter = 0;
+    static unsigned char timer_on = 0;
+
     char *keys_dup, *key, *sv;
     keys_dup = strdup(keys);
     key = strtok_r(keys_dup, " ",&sv);
-    while (key!=NULL) {
+    
+    if(!timer_on) {
+        timer_start();
+        timer_on = 1;
+    }
 
-        printf("%s:", key);
+    while (key!=NULL) {
+        
+        if(!(++keys_counter%10000)) {    
+            timer_stop();
+            timer_start();
+        }
+
         for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
             if (kh_exist(seg_bloom, ki)) {
                 struct bloom *b = kh_value(seg_bloom, ki);
                 char* seg = (char*) kh_key(seg_bloom, ki);
                 // 0 - not present; 1 - present or collision; -1 - filter not initialized
                 int s = bloom_check(b, key, strlen(key));
-                if (s) printf(" %s", seg);
+                // if (s) printf(" %s", seg);
             }
         }
-        fprintf(stderr, "\n");
+        // fprintf(stderr, "\n");
 
         // next token
         key = strtok_r(NULL, " ", &sv);
@@ -433,8 +446,8 @@ int main(int argc, char *argv[]) {
 
 
     fprintf(stderr, "//// TEST ////\n");
-    timer_start();
-
+    // timer_start();
+        // run throug segment`s keys and mesure speed
         for(int i=0; i<nthr; i++) {
             for (khiter_t ki=kh_begin(d.seg_keys[i]); ki!=kh_end(d.seg_keys[i]); ++ki) {
                 if (kh_exist(d.seg_keys[i], ki)) {
@@ -443,7 +456,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-    timer_stop();
+    // timer_stop();
 
 
     fprintf(stderr, "//// CLEANUP ////\n");
