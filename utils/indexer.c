@@ -238,10 +238,12 @@ static void test_keys(khash_t(key_bloom) *seg_bloom, char *keys) {
                     fprintf(stderr, " %s", seg);
                     
                 }
-                // next token
+
             }
         }
         fprintf(stderr, "\n");
+
+        // next token
         key = strtok_r(NULL, " ", &sv);
     }
     free(keys_dup);
