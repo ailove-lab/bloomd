@@ -234,11 +234,7 @@ static void test_keys(khash_t(key_bloom) *seg_bloom, char *keys) {
                 char* seg = (char*) kh_key(seg_bloom, ki);
                 // 0 - not present; 1 - present or collision; -1 - filter not initialized
                 int s = bloom_check(b, key, strlen(key));
-                if (s) {
-                    fprintf(stderr, " %s", seg);
-                    
-                }
-
+                if (s) fprintf(stderr, " %s", seg);
             }
         }
         fprintf(stderr, "\n");
