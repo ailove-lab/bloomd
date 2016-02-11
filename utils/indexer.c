@@ -28,12 +28,18 @@ KHASH_MAP_INIT_STR(key_dstr,   dstr*        );
 KHASH_MAP_INIT_STR(key_int ,   unsigned long);
 KHASH_MAP_INIT_STR(key_bloom , struct bloom*);
 
+// this structure passed to threaded parser
+typedef struct {
+    block              *b;        // parsed data block
+    khash_t(key_dstr) **seg_keys; // seg -> keys hash map
+    khash_t(key_int ) **seg_cnts; // seg -> count hash map
+} data_seg_t;
+
+// this structure passed to threaded reader
 typedef struct {
     block              *b;
-    khash_t(key_dstr) **seg_keys;
-    khash_t(key_int ) **seg_cnts;
-
-} data_t;
+    khash_t(key_bloom) *seg_bloom;
+} data_bloom_t;
 
 dstr* dstr_new() {
     dstr* k = malloc(sizeof(dstr));
@@ -137,7 +143,7 @@ void getSubBlock(block *blk,
 // threaded function
 static void parser(void *data, long i, int tid) {
 
-    data_t *d = (data_t*)data;
+    data_seg_t *d = (data_seg_t*)data;
     block sub = {NULL, 0};
     getSubBlock(d->b, &sub, i, nthr);
 
@@ -202,6 +208,48 @@ static void parser(void *data, long i, int tid) {
     
 }
 
+
+// threaded function
+static void test_bloom(void *data, long i, int tid) {
+
+    data_bloom_t *d = (data_bloom_t*) data;
+    block *b = d->b;
+    khash_t(key_bloom) *seg_bloom = d->seg_bloom;
+
+    block sub = {NULL, 0};
+    getSubBlock(b, &sub, i, nthr);
+
+    // printf("%.*s\n", sub.length, sub.start);
+    
+    if(sub.start == NULL) return;
+
+    char *key, *end, *E;
+    E = sub.start + sub.length;
+    key = sub.start;
+
+    // iterate throug lines
+    do {
+        end = strchr(key, '\n');     // find end
+        if (end == NULL) break;
+        *end = 0;
+        fprintf(stdout, "%s\t", key);
+        for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+            if (kh_exist(seg_bloom, ki)) {
+                struct bloom *b = kh_value(seg_bloom, ki);
+                char* seg = (char*) kh_key(seg_bloom, ki);
+                // 0 - not present; 1 - present or collision; -1 - filter not initialized
+                int s = bloom_check(b, key, strlen(key));
+                if (s) fprintf(stdout," %s", seg);
+            }
+        }
+        fprintf(stdout, "\n");
+
+        key = end+1;
+    } while (*key!='\0' && key<E);
+    
+}
+
+
 static void indexing(struct bloom *bloom, char *keys, char *seg) {
     
     // iterate through keys
@@ -220,54 +268,6 @@ static void indexing(struct bloom *bloom, char *keys, char *seg) {
     free(keys_dup);
 }
 
-static void test_keys(khash_t(key_bloom) *seg_bloom, char *keys) {
-
-    static unsigned int keys_counter = 0;
-    static unsigned char timer_on = 0;
-
-    char *keys_dup, *key, *sv;
-    keys_dup = strdup(keys);
-    key = strtok_r(keys_dup, " ",&sv);
-    
-    if(!timer_on) {
-        timer_start();
-        timer_on = 1;
-    }
-
-    while (key!=NULL) {
-        
-        if(!(++keys_counter%10000)) {    
-            timer_stop();
-            timer_start();
-        }
-
-        for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
-            if (kh_exist(seg_bloom, ki)) {
-                struct bloom *b = kh_value(seg_bloom, ki);
-                char* seg = (char*) kh_key(seg_bloom, ki);
-                // 0 - not present; 1 - present or collision; -1 - filter not initialized
-                int s = bloom_check(b, key, strlen(key));
-                // if (s) printf(" %s", seg);
-            }
-        }
-        // fprintf(stderr, "\n");
-
-        // next token
-        key = strtok_r(NULL, " ", &sv);
-    }
-    free(keys_dup);
-}
-
-// static void print_data(data_t *d) {
-//     for (khiter_t ki=kh_begin(d->seg_keys[i]); ki!=kh_end(d->seg_keys[i]); ++ki) {
-//         if (kh_exist(d->seg_keys[i], ki)) {
-//             char *key = (char*) kh_key(d->seg_keys[i], ki);
-//             printf("create %s\n", key);
-//             printf("b %s %s\n", key, kh_value(d->seg_keys[i], ki)->buf);
-//         }    
-//     }
-// }
-
 // n_threads - number of threads
 // function (data, call number, thread id)
 // data
@@ -282,7 +282,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "PROC: %d\n", nthr);
 
-    
+
 
     fprintf(stderr, "//// LOADING ////\n");
     timer_start(); 
@@ -298,12 +298,13 @@ int main(int argc, char *argv[]) {
         khash_t(key_dstr ) *seg_keys  [nthr];
         khash_t(key_int  ) *seg_cnts  [nthr];
 
+        // init segment hashes
         for(int i=0; i<nthr; i++) {
             seg_keys[i] = kh_init(key_dstr);
             seg_cnts[i] = kh_init(key_int );
         }
 
-        data_t d = {
+        data_seg_t d = {
             .b        = &b, 
             .seg_keys =  seg_keys, 
             .seg_cnts =  seg_cnts
@@ -324,6 +325,7 @@ int main(int argc, char *argv[]) {
         //   3. data, 
         //   4. number of iterations
         kt_for(nthr, parser, &d, nthr);
+        
 
     timer_stop();
 
@@ -444,19 +446,29 @@ int main(int argc, char *argv[]) {
     timer_stop();
 
 
+    if(argc >= 2) {
 
-    fprintf(stderr, "//// TEST ////\n");
-    // timer_start();
-        // run throug segment`s keys and mesure speed
-        for(int i=0; i<nthr; i++) {
-            for (khiter_t ki=kh_begin(d.seg_keys[i]); ki!=kh_end(d.seg_keys[i]); ++ki) {
-                if (kh_exist(d.seg_keys[i], ki)) {
-                    test_keys(seg_bloom, kh_value(d.seg_keys[i],ki)->buf);
-                }
-            }
-        }
+        fprintf(stderr, "//// TEST ////\n");
+        timer_start();
+            
+            block tb = {NULL, 0};
 
-    // timer_stop();
+            data_bloom_t data_bloom = {
+                .b         = &tb,
+                .seg_bloom = seg_bloom
+            };
+
+            loadFile(argv[2], &tb);
+            assert(b.start != NULL);
+
+            kt_for(nthr, test_bloom, &data_bloom, nthr);
+        
+            // dealocate file memory
+            free(tb.start);
+            tb.start = NULL;
+
+        timer_stop();
+    }
 
 
     fprintf(stderr, "//// CLEANUP ////\n");
@@ -486,8 +498,9 @@ int main(int argc, char *argv[]) {
             kh_destroy(key_int , seg_cnts[i]);
         }
 
-        fprintf(stderr, "Free memory allocated for file\n");
+        // dealocate file memory
         free(b.start);
+        b.start = NULL;
 
     timer_stop();
 
