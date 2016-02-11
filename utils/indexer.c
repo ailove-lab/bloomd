@@ -232,17 +232,17 @@ static void test_bloom(void *data, long i, int tid) {
         end = strchr(key, '\n');     // find end
         if (end == NULL) break;
         *end = 0;
-        fprintf(stdout, "%s\t", key);
+        // fprintf(stdout, "%s\t", key);
         for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
             if (kh_exist(seg_bloom, ki)) {
                 struct bloom *b = kh_value(seg_bloom, ki);
                 char* seg = (char*) kh_key(seg_bloom, ki);
                 // 0 - not present; 1 - present or collision; -1 - filter not initialized
                 int s = bloom_check(b, key, strlen(key));
-                if (s) fprintf(stdout," %s", seg);
+                // if (s) fprintf(stdout," %s", seg);
             }
         }
-        fprintf(stdout, "\n");
+        // fprintf(stdout, "\n");
 
         key = end+1;
     } while (*key!='\0' && key<E);
