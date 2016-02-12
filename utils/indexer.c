@@ -461,7 +461,7 @@ int main(int argc, char *argv[]) {
             loadFile(argv[2], &tb);
             assert(b.start != NULL);
 
-            kt_for(nthr, test_bloom, &data_bloom, nthr);
+            kt_for(nthr, test_bloom, &data_bloom, kh_size(seg_bloom));
         
             // dealocate file memory
             free(tb.start);
