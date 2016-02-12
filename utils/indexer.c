@@ -9,6 +9,7 @@
 #include <sys/time.h>
 
 #include "khash.h"
+#include "kvec.h"
 #include "bloom.h"
 
 typedef struct {
@@ -21,6 +22,8 @@ typedef struct {
     char *crs;
     unsigned int length;
 } dstr;
+
+struct keys_vec { size_t n, m; char *a; } keys_vec;
 
 int nthr;
 
@@ -37,7 +40,7 @@ typedef struct {
 
 // this structure passed to threaded reader
 typedef struct {
-    block              *b;
+    kvec_t(char*) *keys;
     khash_t(key_bloom) *seg_bloom;
 } data_bloom_t;
 
@@ -212,40 +215,40 @@ static void parser(void *data, long i, int tid) {
 // threaded function
 static void test_bloom(void *data, long i, int tid) {
 
-    data_bloom_t *d = (data_bloom_t*) data;
-    block *b = d->b;
-    khash_t(key_bloom) *seg_bloom = d->seg_bloom;
-
-    block sub = {NULL, 0};
-    getSubBlock(b, &sub, i, nthr);
-
-    // printf("%.*s\n", sub.length, sub.start);
-    
-    if(sub.start == NULL) return;
-
-    char *key, *end, *E;
-    E = sub.start + sub.length;
-    key = sub.start;
-
-    // iterate throug lines
-    do {
-        end = strchr(key, '\n');     // find end
-        if (end == NULL) break;
-        *end = 0;
-        // fprintf(stdout, "%s\t", key);
-        for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
-            if (kh_exist(seg_bloom, ki)) {
-                struct bloom *b = kh_value(seg_bloom, ki);
-                char* seg = (char*) kh_key(seg_bloom, ki);
-                // 0 - not present; 1 - present or collision; -1 - filter not initialized
-                int s = bloom_check(b, key, strlen(key));
-                // if (s) fprintf(stdout," %s", seg);
-            }
-        }
-        // fprintf(stdout, "\n");
-
-        key = end+1;
-    } while (*key!='\0' && key<E);
+//    data_bloom_t *d = (data_bloom_t*) data;
+//    block *b = d->b;
+//    khash_t(key_bloom) *seg_bloom = d->seg_bloom;
+//
+//    block sub = {NULL, 0};
+//    getSubBlock(b, &sub, i, nthr);
+//
+//    // printf("%.*s\n", sub.length, sub.start);
+//    
+//    if(sub.start == NULL) return;
+//
+//    char *key, *end, *E;
+//    E = sub.start + sub.length;
+//    key = sub.start;
+//
+//    // iterate throug lines
+//    do {
+//        end = strchr(key, '\n');     // find end
+//        if (end == NULL) break;
+//        *end = 0;
+//        // fprintf(stdout, "%s\t", key);
+//        for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+//            if (kh_exist(seg_bloom, ki)) {
+//                struct bloom *b = kh_value(seg_bloom, ki);
+//                char* seg = (char*) kh_key(seg_bloom, ki);
+//                // 0 - not present; 1 - present or collision; -1 - filter not initialized
+//                int s = bloom_check(b, key, strlen(key));
+//                // if (s) fprintf(stdout," %s", seg);
+//            }
+//        }
+//        // fprintf(stdout, "\n");
+//
+//        key = end+1;
+//    } while (*key!='\0' && key<E);
     
 }
 
@@ -266,6 +269,23 @@ static void indexing(struct bloom *bloom, char *keys, char *seg) {
         key = strtok_r(NULL, " ", &sv);
     }
     free(keys_dup);
+}
+
+// generate array of segments
+// original string modified, token replaced with zero
+struct keys_vec tokenize_block(block *b, char *token) {
+    
+    struct keys_vec v;
+    kv_init(v);
+
+    char *seg, *sv;
+    seg = strtok_r(b->start, token, &sv);
+
+    while (seg!=NULL) {
+        kv_push(char*, v, seg);
+        seg = strtok_r(NULL, " ", &sv);
+    }
+    return v; 
 }
 
 // n_threads - number of threads
@@ -453,13 +473,16 @@ int main(int argc, char *argv[]) {
             
             block tb = {NULL, 0};
 
-            data_bloom_t data_bloom = {
-                .b         = &tb,
-                .seg_bloom = seg_bloom
-            };
 
             loadFile(argv[2], &tb);
             assert(b.start != NULL);
+
+            // tokenize string
+            struct keys_vec keys = tokenize_block(&b, '\n');
+            data_bloom_t data_bloom = {
+                .keys      = &keys,
+                .seg_bloom = seg_bloom
+            };
 
             kt_for(nthr, test_bloom, &data_bloom, kh_size(seg_bloom));
         
@@ -468,11 +491,20 @@ int main(int argc, char *argv[]) {
             tb.start = NULL;
 
         timer_stop();
+
+        // cleanup
+        kv_destroy(keys);
+        
+        // dealocate file memory
+        free(tb.start);
+        tb.start = NULL;
+
     }
 
 
     fprintf(stderr, "//// CLEANUP ////\n");
     timer_start();
+
     
         fprintf(stderr, "Free blooms\n");
         for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
