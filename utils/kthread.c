@@ -57,6 +57,8 @@ void kt_for(int n_threads, void (*func)(void*,long,int), void *data, long n)
 		t.w[i].t = &t, t.w[i].i = i;
 	for (i = 0; i < n_threads; ++i) pthread_create(&tid[i], 0, ktf_worker, &t.w[i]);
 	for (i = 0; i < n_threads; ++i) pthread_join(tid[i], 0);
+	free(t.w);
+	free(tid);
 }
 
 /*****************
