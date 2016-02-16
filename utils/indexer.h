@@ -34,6 +34,9 @@ typedef struct {
     khash_t(key_bloom_hm) *seg_bloom;
 } data_bloom_t;
 
+// number of threads
+static int nthr;
+
 // decalred at kthread.c
 void kt_for(int n_threads, void (*func)(void*, long, int), void *data, long n);
 
@@ -43,11 +46,12 @@ static khash_t(key_int_hm ) **seg_cnts;  // [seg -> counters   ] per thread
 static khash_t(key_int_hm)   *seg_cnt;   //  seg -> counter      integral
 static khash_t(key_bloom_hm) *seg_bloom; //  seg -> bloom        bloom filters
 
-static block data_block;
+static block raw_data_bl;
 static data_seg_t d;
 
 // test
-static block keys_block;
+static block keys_bl;
 static struct keys_vec test_keys_vec;
+static dstr **key_segs;
 
 #endif
