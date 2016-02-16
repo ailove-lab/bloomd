@@ -14,7 +14,6 @@ static void cleanup();
 static void load_file(char *filename, block *b);
 static void get_sub_block(block *blk, block *sub, unsigned int n, unsigned int p);
 static void raw_data_parser(void *data, long i, int tid);
-// static void test_bloom(void *data, long i, int tid);
 static void reconstruct_key(void *data, long i, int tid);
 static void indexing(struct bloom *bloom, char *keys, char *seg);
 static void allocate_hashmaps();
@@ -24,6 +23,7 @@ static void allocate_bloom_filters();
 static void fill_bloom_filters();
 
 static void test_reconstruction(char *filename);
+// static void test_bloom(void *data, long i, int tid);
 
 static struct keys_vec tokenize_block(block *b, char *token);
 
