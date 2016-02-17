@@ -10,9 +10,67 @@
 #include "indexer.h"
 #include "timer.h"
 
+#include "khash.h"
+#include "kvec.h"
+#include "bloom.h"
+#include "dstr.h"
+
+  ///////////
+ /// T&V ///
+///////////
+
+// structure for file parts storage
+typedef struct {
+    char *start;
+    unsigned long length;
+} block_t;
+
+// vector of strings (kvec_t(char*)) 
+typedef struct {
+    size_t n, m;
+    char **a;
+} char_vec_t; 
+
+// INIT HASHMAPS
+KHASH_MAP_INIT_STR(key_dstr_hm ,   dstr*        ); // key -> dynamic string
+KHASH_MAP_INIT_STR(key_int_hm  ,   unsigned long); // key -> int
+KHASH_MAP_INIT_STR(key_bloom_hm,   struct bloom*); // key -> bloom
+
+// this structure passed to threaded parser
+typedef struct {
+    block_t               *b;        // parsed data block
+    khash_t(key_dstr_hm) **seg_keys; // seg -> keys hash map
+    khash_t(key_int_hm ) **seg_cnts; // seg -> count hash map
+} data_seg_t;
+
+// this structure passed to threaded reader
+typedef struct {
+    struct char_vec_t *keys;
+    khash_t(key_bloom_hm) *seg_bloom;
+} data_bloom_t;
+
+// number of threads
+static int nthr;
+
+// hash maps
+static khash_t(key_dstr_hm) **seg_keys;  // [seg -> keys string] per thread
+static khash_t(key_int_hm ) **seg_cnts;  // [seg -> counters   ] per thread
+static khash_t(key_int_hm)   *seg_cnt;   //  seg -> counter      integral
+static khash_t(key_bloom_hm) *seg_bloom; //  seg -> bloom        bloom filters
+
+static block_t raw_data_bl;
+// static data_seg_t d;
+  
+  ////////////////
+ // FUNCTIONS ///
+////////////////
+
+// external kthread.c
+void kt_for(int n_threads, void (*func)(void*, long, int), void *data, long n);
+
 static void cleanup();
-static void load_file(char *filename, block *b);
-static void get_sub_block(block *blk, block *sub, unsigned int n, unsigned int p);
+static void load_file(char *filename, block_t *b);
+static void get_sub_block(block_t *blk, block_t *sub, unsigned int n, unsigned int p);
 static void raw_data_parser(void *data, long i, int tid);
 static void reconstruct_key(void *data, long i, int tid);
 static void indexing(struct bloom *bloom, char *keys, char *seg);
@@ -22,12 +80,24 @@ static void print_segments();
 static void allocate_bloom_filters();
 static void fill_bloom_filters();
 
-static void test_reconstruction(char *filename);
 // static void test_bloom(void *data, long i, int tid);
 
-static struct keys_vec tokenize_block(block *b, char *token);
-
+static char_vec_t tokenize_block(block_t *b, char *token);
 static int usage(){ printf("usage: pack file\n"); return 1;}
+
+// TEST //
+
+static block_t     test_keys_bl;
+static char_vec_t  test_keys_vec; // vector of test keys
+static char_vec_t *test_keys_segs; // array of segment vectors
+
+static void test_reconstruction(char *filename);
+
+
+  ////////////
+ /// MAIN ///
+////////////
+
 
 int main(int argc, char *argv[]) {
 
@@ -128,7 +198,7 @@ static void cleanup() {
 
 // load whole file to mem
 // adds \n\0 at the end
-static void load_file(char *filename, block *b) {
+static void load_file(char *filename, block_t *b) {
 
     FILE *infile;
 
@@ -157,8 +227,8 @@ static void load_file(char *filename, block *b) {
 // search first \n for start
 // search last  \n for length
 // WARNING p must be less than number of strings x3!
-static void get_sub_block(block *blk,
-                   block *sub,
+static void get_sub_block(block_t *blk,
+                   block_t *sub,
                    unsigned int n,
                    unsigned int p) {
 
@@ -187,7 +257,7 @@ static void raw_data_parser(void *data, long i, int tid) {
 
     assert(&raw_data_bl.start != NULL);
 
-    block sub = {NULL, 0};
+    block_t sub = {NULL, 0};
     get_sub_block(&raw_data_bl, &sub, i, nthr);
 
     assert(sub.start != NULL);
@@ -253,10 +323,11 @@ static void reconstruct_key(void *data, long i, int tid) {
     char *key = (char*) data;
     for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
         if(kh_exist(seg_bloom, ki)) {
-             struct bloom *b = kh_value(seg_bloom, ki);
-             char *seg = (char*) kh_key(seg_bloom, ki);
-             int s = bloom_check(b, key, strlen(key));
-             if(s) dstr_add(key_segs[i], seg);
+            struct bloom *b = kh_value(seg_bloom, ki);
+            char *seg = (char*) kh_key(seg_bloom, ki);
+            int s = bloom_check(b, key, strlen(key));
+            // if(s) dstr_add(test_keys_segs[i], seg);
+            if(s) printf("%s\n", seg);
         }
     }
 }
@@ -281,9 +352,9 @@ static void indexing(struct bloom *bloom, char *keys, char *seg) {
 
 // generate array of segments
 // original string modified, token replaced with zero
-static struct keys_vec tokenize_block(block *b, char *token) {
+static char_vec_t tokenize_block(block_t *b, char *token) {
 
-    struct keys_vec v;
+    char_vec_t v;
     kv_init(v);
 
     char *seg, *sv;
@@ -295,6 +366,7 @@ static struct keys_vec tokenize_block(block *b, char *token) {
     }
     return v;
 }
+
 
 // init hashmaps for evrsed seg -> kes data
 static void allocate_hashmaps() {
@@ -326,14 +398,15 @@ static void integrate_counters() {
                 // printf("%s %lu \n", seg, kh_value(seg_cnts[i], ki));
                 si = kh_put(key_int_hm, seg_cnt, seg, &ret);
                 if(ret == 0) { // sеgment exists
-                    kh_value(seg_cnt, si)+= kh_value(seg_cnts[i], ki); 
+                    kh_value(seg_cnt, si)+= kh_value(seg_cnts[i], ki);
                 } else if(ret == 1) { // new segment
-                    kh_value(seg_cnt, si) = kh_value(seg_cnts[i], ki); 
+                    kh_value(seg_cnt, si) = kh_value(seg_cnts[i], ki);
                 }
             }
         }
     }
 }
+
 
 // print reversed seg -> keys data if bloomd format
 static void print_segments() {
@@ -361,9 +434,7 @@ static void print_segments() {
 }
 
 
-
-
-// allocate bloom filters 
+// allocate bloom filters
 static void allocate_bloom_filters() {
 
     seg_bloom = kh_init(key_bloom_hm);
@@ -380,7 +451,7 @@ static void allocate_bloom_filters() {
            // add key to segment
            ki = kh_put(key_bloom_hm, seg_bloom, key, &ret);
            if(ret) {
-               bloom = (struct bloom*)malloc(sizeof(struct bloom)); 
+               bloom = (struct bloom*)malloc(sizeof(struct bloom));
                bloom_init(bloom, cap, 0.01);
                kh_value(seg_bloom, ki) = bloom;
            } else {
@@ -392,6 +463,7 @@ static void allocate_bloom_filters() {
     fprintf(stderr, "Created %d bloom filters\n", kh_size(seg_bloom));
 
 }
+
 
 // populate bloom filters with agregated data
 static void fill_bloom_filters() {
@@ -412,30 +484,48 @@ static void fill_bloom_filters() {
 }
 
 
+  /////////////
+ /// TESTS ///
+/////////////
+
+
 // Run through keys and reconstruct
 static void test_reconstruction(char *filename) {
 
-    load_file(filename, &keys_bl);
-    assert(keys_bl.start != NULL);
+    load_file(filename, &    test_keys_bl);
+    assert(test_keys_bl.start != NULL);
 
     // tokenize string
-    test_keys_vec = tokenize_block(&keys_bl, "\n");
+    test_keys_vec = tokenize_block(&test_keys_bl, "\n");
 
-    fprintf(stderr, "seg_bloom: [%d..%d) %d\n", kh_begin(seg_bloom), kh_end(seg_bloom), kh_size(seg_bloom));
-    // kid -> linked list
-    kt_for(nthr, reconstruct_key, 0, kv_size(test_keys_vec));
+    fprintf(stderr, 
+        "seg_bloom: [%d..%d) %d\n", 
+        kh_begin(seg_bloom), 
+        kh_end(seg_bloom), 
+        kh_size(seg_bloom));
+    
+    // init test_keys_segs
+    size_t keys_count = kv_size(test_keys_vec);
+    test_keys_segs = (char_vec_t*) malloc(keys_count * sizeof(char_vec_t));
+    for(int i=0; i<keys_count; ++i) kv_init(test_keys_segs[i]);
 
-    ////////////////////////
-    // dealocate file memory
-    free(keys_bl.start);
-    keys_bl.start = NULL;
+    kt_for(nthr, reconstruct_key, 0, keys_count);
+
+    // CLEAN UP //
+    
+    // clear segments list
+    for(int i=0; i<keys_count; ++i) kv_destroy(test_keys_segs[i]);
+    free(test_keys_segs);
+
+    free(test_keys_bl.start);
+    test_keys_bl.start = NULL;
 
     // cleanup
     kv_destroy(test_keys_vec);
 
     // dealocate file memory
-    free(keys_bl.start);
-    keys_bl.start = NULL;
+    free(test_keys_bl.start);
+        test_keys_bl.start = NULL;
 }
 
 /*
