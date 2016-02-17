@@ -327,7 +327,7 @@ static void reconstruct_key(void *data, long i, int tid) {
             char *seg = (char*) kh_key(seg_bloom, ki);
             int s = bloom_check(b, key, strlen(key));
             // if(s) dstr_add(test_keys_segs[i], seg);
-            if(s) printf("%s\n", seg);
+            if(s) kv_push(seg);
         }
     }
 }
