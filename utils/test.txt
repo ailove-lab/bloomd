@@ -1,0 +1,51 @@
+PROC: 24
+//// LOADING ////
+4 ms
+//// MAP ////
+53 ms
+//// REDUCE ////
+1 ms
+//// INDEXING ////
+Allocate filters
+Created 779 bloom filters
+9 ms
+Filling filters
+65 ms
+//// TEST ////
+Loading keys 1 ms
+Vectorize keys 6 ms
+seg_bloom: [0..1024) 779
+Init storage for 100000 keys 1 ms
+Restore 100000 keys 1300 ms
+Cleanup 7 ms
+//// CLEANUP ////
+Free blooms
+Free integral seg counter
+Free seg_keys[] and seg_cnts[]
+7 ms
+
+PROC: 24
+//// LOADING ////
+1258 ms
+//// MAP ////
+2371 ms
+//// REDUCE ////
+3 ms
+//// INDEXING ////
+Allocate filters
+Created 880 bloom filters
+26 ms
+Filling filters
+24484 ms
+//// TEST ////
+Loading keys 400 ms
+Vectorize keys 1793 ms
+seg_bloom: [0..2048) 880
+Init storage for 28389029 keys 321 ms
+Restore 28389029 keys 580317 ms
+Cleanup 2673 ms
+//// CLEANUP ////
+Free blooms
+Free integral seg counter
+Free seg_keys[] and seg_cnts[]
+2177 ms
