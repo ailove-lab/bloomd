@@ -1,5 +1,5 @@
 #!/bin/bash
-clang -O0 -g -Wall -o indexer      \
+clang -Ofast -Wall -o indexer      \
 -I./libbloom -I./libbloom/murmur2  \
 -D __linux__                       \
 indexer.c kthread.c dstr.c timer.c \
