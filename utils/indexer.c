@@ -499,13 +499,13 @@ static void test_reconstruction(char *filename) {
     char_vec_t  test_keys_vec; // vector of test keys
     char_vec_t *test_keys_segs; // array of segment vectors
     
-    fprintf(stderr, "Loading keys\n");
+    fprintf(stderr, "Loading keys ");
     timer_start();
     load_file(filename, &    test_keys_bl);
     timer_stop();
     assert(test_keys_bl.start != NULL);
 
-    fprintf(stderr, "Vectorize keys\n");
+    fprintf(stderr, "Vectorize keys ");
     timer_start();
     // tokenize string
     test_keys_vec = tokenize_block(&test_keys_bl, "\n");
@@ -520,14 +520,14 @@ static void test_reconstruction(char *filename) {
     // init test_keys_segs
     // size_t segs_count = kh_size(seg_bloom);
     size_t keys_count = kv_size(test_keys_vec);
-    fprintf(stderr, "Init storage for %zu keys\n", keys_count);
+    fprintf(stderr, "Init storage for %zu keys ", keys_count);
     timer_start();
     test_keys_segs = (char_vec_t*) malloc(keys_count * sizeof(char_vec_t));
     for(int i=0; i<keys_count; ++i) kv_init(test_keys_segs[i]);
     timer_stop();
 
     rec_keys_t rec_keys = {test_keys_vec, test_keys_segs};
-    fprintf(stderr, "Restore %zu keys\n", keys_count);
+    fprintf(stderr, "Restore %zu keys ", keys_count);
     timer_start();
     kt_for(nthr, reconstruct_key, &rec_keys, keys_count);
     timer_stop();
@@ -543,7 +543,7 @@ static void test_reconstruction(char *filename) {
     // }
 
     // CLEAN UP //
-    fprintf(stderr, "Cleanup\n");
+    fprintf(stderr, "Cleanup ");
     timer_start();
     
     // clear segments list
