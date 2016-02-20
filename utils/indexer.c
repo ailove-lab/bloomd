@@ -148,9 +148,7 @@ int main(int argc, char *argv[]) {
 
     if(argc >= 3) {
         fprintf(stderr, "//// TEST ////\n");
-        timer_start();
         test_reconstruction(argv[2]);
-        timer_stop();
     }
 
     fprintf(stderr, "//// CLEANUP ////\n");
@@ -500,12 +498,18 @@ static void test_reconstruction(char *filename) {
     block_t     test_keys_bl;
     char_vec_t  test_keys_vec; // vector of test keys
     char_vec_t *test_keys_segs; // array of segment vectors
-
+    
+    fprintf(stderr, "Loading keys\n");
+    timer_start();
     load_file(filename, &    test_keys_bl);
+    timer_stop();
     assert(test_keys_bl.start != NULL);
 
+    fprintf(stderr, "Vectorize keys\n");
+    timer_start();
     // tokenize string
     test_keys_vec = tokenize_block(&test_keys_bl, "\n");
+    timer_stop();
 
     fprintf(stderr, 
         "seg_bloom: [%d..%d) %d\n", 
@@ -514,13 +518,19 @@ static void test_reconstruction(char *filename) {
         kh_size(seg_bloom));
     
     // init test_keys_segs
-    size_t keys_count = kv_size(test_keys_vec);
     // size_t segs_count = kh_size(seg_bloom);
+    size_t keys_count = kv_size(test_keys_vec);
+    fprintf(stderr, "Init storage for %zu keys\n", keys_count);
+    timer_start();
     test_keys_segs = (char_vec_t*) malloc(keys_count * sizeof(char_vec_t));
     for(int i=0; i<keys_count; ++i) kv_init(test_keys_segs[i]);
+    timer_stop();
 
     rec_keys_t rec_keys = {test_keys_vec, test_keys_segs};
+    fprintf(stderr, "Restore %zu keys\n", keys_count);
+    timer_start();
     kt_for(nthr, reconstruct_key, &rec_keys, keys_count);
+    timer_stop();
 
     // char *key = (char*) kv_A(*keys, i);
     // for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
@@ -533,6 +543,8 @@ static void test_reconstruction(char *filename) {
     // }
 
     // CLEAN UP //
+    fprintf(stderr, "Cleanup\n");
+    timer_start();
     
     // clear segments list
     for(int i=0; i<keys_count; ++i) kv_destroy(test_keys_segs[i]);
@@ -548,6 +560,8 @@ static void test_reconstruction(char *filename) {
     // dealocate file memory
     free(test_keys_bl.start);
         test_keys_bl.start = NULL;
+
+    timer_stop();
 }
 
 /*
