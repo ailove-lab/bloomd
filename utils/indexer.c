@@ -29,7 +29,12 @@ typedef struct {
 typedef struct {
     size_t n, m;
     char **a;
-} char_vec_t; 
+} char_vec_t;
+
+typedef struct {
+    char_vec_t  keys;
+    char_vec_t *segs;
+} rec_keys_t;
 
 // INIT HASHMAPS
 KHASH_MAP_INIT_STR(key_dstr_hm ,   dstr*        ); // key -> dynamic string
@@ -86,10 +91,6 @@ static char_vec_t tokenize_block(block_t *b, char *token);
 static int usage(){ printf("usage: pack file\n"); return 1;}
 
 // TEST //
-
-static block_t     test_keys_bl;
-static char_vec_t  test_keys_vec; // vector of test keys
-static char_vec_t *test_keys_segs; // array of segment vectors
 
 static void test_reconstruction(char *filename);
 
@@ -319,17 +320,21 @@ static void raw_data_parser(void *data, long i, int tid) {
 
 // threaded reconstruction of single key
 // iterates through blooms and recover seg names
-static void reconstruct_key(void *key_vec, long i, int tid) {
-    char *key = (char*) kv_A(*(char_vec_t*)key_vec, i);
+static void reconstruct_key(void *rec_keys, long i, int tid) {
+    
+    char_vec_t  keys = ((rec_keys_t*)rec_keys)->keys;
+    char_vec_t *segs = ((rec_keys_t*)rec_keys)->segs;
+    // printf("%p %p\n", keys, segs);
+    char *key = (char*) kv_A(keys, i);
     for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
         if(kh_exist(seg_bloom, ki)) {
             struct bloom *b = kh_value(seg_bloom, ki);
             char *seg = (char*) kh_key(seg_bloom, ki);
             int s = bloom_check(b, key, strlen(key));
-            // // if(s) dstr_add(test_keys_segs[i], seg);
-            // if(s) kv_push(char*, test_keys_segs[i], seg);
+            if(s) kv_push(char*, segs[i], seg);
         }
     }
+    // printf("thread: %d, key %ld, segs: %zu\n", tid, i, segs[i].n);
 }
 
 
@@ -491,6 +496,10 @@ static void fill_bloom_filters() {
 
 // Run through keys and reconstruct
 static void test_reconstruction(char *filename) {
+   
+    block_t     test_keys_bl;
+    char_vec_t  test_keys_vec; // vector of test keys
+    char_vec_t *test_keys_segs; // array of segment vectors
 
     load_file(filename, &    test_keys_bl);
     assert(test_keys_bl.start != NULL);
@@ -506,15 +515,28 @@ static void test_reconstruction(char *filename) {
     
     // init test_keys_segs
     size_t keys_count = kv_size(test_keys_vec);
+    // size_t segs_count = kh_size(seg_bloom);
     test_keys_segs = (char_vec_t*) malloc(keys_count * sizeof(char_vec_t));
     for(int i=0; i<keys_count; ++i) kv_init(test_keys_segs[i]);
 
-    kt_for(nthr, reconstruct_key, &test_keys_vec, keys_count);
+    rec_keys_t rec_keys = {test_keys_vec, test_keys_segs};
+    kt_for(nthr, reconstruct_key, &rec_keys, keys_count);
+
+    // char *key = (char*) kv_A(*keys, i);
+    // for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+    //     if(kh_exist(seg_bloom, ki)) {
+    //         struct bloom *b = kh_value(seg_bloom, ki);
+    //         char *seg = (char*) kh_key(seg_bloom, ki);
+    //         int s = bloom_check(b, key, strlen(key));
+    //         if(s) kv_push(char*, *(segs[i]), seg);
+    //     }
+    // }
 
     // CLEAN UP //
     
     // clear segments list
     for(int i=0; i<keys_count; ++i) kv_destroy(test_keys_segs[i]);
+
     free(test_keys_segs);
 
     free(test_keys_bl.start);
