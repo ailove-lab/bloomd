@@ -316,6 +316,23 @@ static void raw_data_parser(void *data, long i, int tid) {
     } while (*key!='\0' && key<E);
 }
 
+
+// threaded reconstruction of single key
+// iterates through blooms and recover seg names
+static void reconstruct_key(void *key_vec, long i, int tid) {
+    char *key = (char*) kv_A(*(char_vec_t*)key_vec, i);
+    for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+        if(kh_exist(seg_bloom, ki)) {
+            struct bloom *b = kh_value(seg_bloom, ki);
+            char *seg = (char*) kh_key(seg_bloom, ki);
+            int s = bloom_check(b, key, strlen(key));
+            // // if(s) dstr_add(test_keys_segs[i], seg);
+            // if(s) kv_push(char*, test_keys_segs[i], seg);
+        }
+    }
+}
+
+
 // put space separated keys to bloom filter
 static void indexing(struct bloom *bloom, char *keys, char *seg) {
 
@@ -467,24 +484,6 @@ static void fill_bloom_filters() {
 }
 
 
-
-// threaded reconstruction of single key
-// iterates through blooms and recover seg names
-static void reconstruct_key(void *data, long i, int tid) {
-    char *key = (char*) data;
-    for(khiter_t si=kh_begin(seg_bloom); si!=kh_end(seg_bloom); ++si) {
-        if(kh_exist(seg_bloom, si)) {
-            struct bloom *b = kh_value(seg_bloom, si);
-            char *seg = (char*) kh_key(seg_bloom, si);
-            int s = bloom_check(b, key, strlen(key));
-            // if(s) dstr_add(test_keys_segs[i], seg);
-            if(s) kv_push(char*, test_keys_segs[i], seg);
-        }
-    }
-}
-
-
-
   /////////////
  /// TESTS ///
 /////////////
@@ -510,7 +509,7 @@ static void test_reconstruction(char *filename) {
     test_keys_segs = (char_vec_t*) malloc(keys_count * sizeof(char_vec_t));
     for(int i=0; i<keys_count; ++i) kv_init(test_keys_segs[i]);
 
-    kt_for(nthr, reconstruct_key, 0, keys_count);
+    kt_for(nthr, reconstruct_key, &test_keys_vec, keys_count);
 
     // CLEAN UP //
     
