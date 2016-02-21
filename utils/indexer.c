@@ -14,16 +14,11 @@
 #include "kvec.h"
 #include "bloom.h"
 #include "dstr.h"
+#include "map.h"
 
   ///////////
  /// T&V ///
 ///////////
-
-// structure for file parts storage
-typedef struct {
-    char *start;
-    unsigned long length;
-} block_t;
 
 // vector of strings (kvec_t(char*))
 typedef struct {
@@ -43,7 +38,7 @@ KHASH_MAP_INIT_STR(key_bloom_hm,   struct bloom*); // key -> bloom
 
 // this structure passed to threaded parser
 typedef struct {
-    block_t               *b;        // parsed data block
+    map_block_t               *b;        // parsed data block
     khash_t(key_dstr_hm) **seg_keys; // seg -> keys hash map
     khash_t(key_int_hm ) **seg_cnts; // seg -> count hash map
 } data_seg_t;
@@ -63,7 +58,7 @@ static khash_t(key_int_hm ) **seg_cnts;  // [seg -> counters   ] per thread
 static khash_t(key_int_hm)   *seg_cnt;   //  seg -> counter      integral
 static khash_t(key_bloom_hm) *seg_bloom; //  seg -> bloom        bloom filters
 
-static block_t raw_data_bl;
+static map_block_t raw_data_bl;
 // static data_seg_t d;
 
   ////////////////
@@ -74,8 +69,6 @@ static block_t raw_data_bl;
 void kt_for(int n_threads, void (*func)(void*, long, int), void *data, long n);
 
 static void cleanup();
-static void load_file(char *filename, block_t *b);
-static void get_sub_block(block_t *blk, block_t *sub, unsigned int n, unsigned int p);
 static void raw_data_parser(void *data, long i, int tid);
 static void reconstruct_key(void *data, long i, int tid);
 static void indexing(struct bloom *bloom, char *keys, char *seg);
@@ -88,7 +81,7 @@ static void print_blooms();
 
 // static void test_bloom(void *data, long i, int tid);
 
-static char_vec_t tokenize_block(block_t *b, char *token);
+static char_vec_t tokenize_block(map_block_t *b, char *token);
 static int usage(){ printf("usage: pack file\n"); return 1;}
 
 // TEST //
@@ -111,7 +104,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "//// LOADING ////\n");
     timer_start();
-    load_file(argv[1], &raw_data_bl);
+    map_load_block(argv[1], &raw_data_bl);
     assert(raw_data_bl.start != NULL);
     timer_stop();
 
@@ -197,69 +190,14 @@ static void cleanup() {
 
 }
 
-// load whole file to mem
-// adds \n\0 at the end
-static void load_file(char *filename, block_t *b) {
-
-    FILE *infile;
-
-    infile = fopen(filename, "r");
-    if(infile == NULL) return;
-
-    fseek(infile, 0L, SEEK_END);
-    b->length = ftell(infile);
-
-    fseek(infile, 0L, SEEK_SET);
-
-    b->start = (char*)calloc(b->length+2, sizeof(char));
-    if(b->start == NULL) return;
-
-    fread(b->start, sizeof(char), b->length, infile);
-    fclose(infile);
-
-    b->start[b->length  ] = '\n';
-    b->start[b->length+1] = '\0';
-    b->length += 2;
-}
-
-
-// split block on 'p' parts
-// get part n
-// search first \n for start
-// search last  \n for length
-// WARNING p must be less than number of strings x3!
-static void get_sub_block(block_t *blk,
-                   block_t *sub,
-                   unsigned int n,
-                   unsigned int p) {
-
-    if(n>p-1 || p > 128) return;
-
-    char *E = blk->start + blk->length;
-    unsigned int l = blk->length / p;
-    char *s = blk->start + n*l;
-    char *e = s + l;
-
-    if (n>0)
-        while ( s < E && s[-1] != '\n') s++;
-
-    // if (n<p-1)
-        while ( e < E && e[-1] != '\n') e++;
-
-    if (s == e) return;
-    sub->start  = s;
-    sub->length = (n<p-1) ? e-s : E-s;
-
-}
-
 // parser for raw format
 // threaded function
 static void raw_data_parser(void *data, long i, int tid) {
 
     assert(&raw_data_bl.start != NULL);
 
-    block_t sub = {NULL, 0};
-    get_sub_block(&raw_data_bl, &sub, i, nthr);
+    map_block_t sub = {NULL, 0};
+    map_get_sub_block(&raw_data_bl, &sub, i, nthr);
 
     assert(sub.start != NULL);
 
@@ -357,7 +295,7 @@ static void indexing(struct bloom *bloom, char *keys, char *seg) {
 
 // generate array of segments
 // original string modified, token replaced with zero
-static char_vec_t tokenize_block(block_t *b, char *token) {
+static char_vec_t tokenize_block(map_block_t *b, char *token) {
 
     char_vec_t v;
     kv_init(v);
@@ -520,13 +458,13 @@ static void print_blooms() {
 // Run through keys and reconstruct
 static void test_reconstruction(char *filename) {
 
-    block_t     test_keys_bl;
+    map_block_t     test_keys_bl;
     char_vec_t  test_keys_vec; // vector of test keys
     char_vec_t *test_keys_segs; // array of segment vectors
 
     fprintf(stderr, "Loading keys ");
     timer_start();
-    load_file(filename, &    test_keys_bl);
+    map_load_block(filename, &    test_keys_bl);
     timer_stop();
     assert(test_keys_bl.start != NULL);
 
