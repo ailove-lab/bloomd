@@ -161,6 +161,33 @@ void bloom_print(struct bloom * bloom);
 
 
 /** ***************************************************************************
+ * Save filter to fs
+ *
+ * Parameters:
+ * -----------
+ *     bloom    - Pointer to an allocated struct bloom (see above).
+ *     filename - Filename
+ *
+ * Return: none
+ *
+ */
+void bloom_save(struct bloom * bloom, char * filename);
+
+/** ***************************************************************************
+ * Load saved filter from fs
+ *
+ * Parameters:
+ * -----------
+ *     bloom    - Pointer to an allocated struct bloom (see above).
+ *     filename - Filename
+ *
+ * Return: none
+ *
+ */
+void bloom_load(struct bloom * bloom, char * filename);
+
+
+/** ***************************************************************************
  * Deallocate internal storage.
  *
  * Upon return, the bloom struct is no longer usable. You may call bloom_init

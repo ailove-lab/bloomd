@@ -196,6 +196,25 @@ void bloom_print(struct bloom * bloom)
   (void)printf(" ->hash functions = %d\n", bloom->hashes);
 }
 
+void bloom_save(struct bloom * bloom, char * filename) {
+  FILE * fd = fopen(filename, "wb");
+  if(fd != NULL) {
+    // save struct
+    fwrite(bloom, sizeof(struct bloom), 1, fd);        // write struct
+    fwrite(bloom->bf, sizeof(char), bloom->bytes, fd); // write filter
+    fclose(fd);
+  }
+}
+
+void bloom_load(struct bloom * bloom, char * filename) {
+  FILE * fd = fopen(filename, "rb");
+  if(fd != NULL) {
+    fread(bloom, sizeof(struct bloom), 1, fd);
+    bloom->bf = (unsigned char *)calloc(bloom->bytes, sizeof(unsigned char));
+    fread(bloom->bf, sizeof(char), bloom->bytes, fd);
+    fclose(fd);
+  }
+}
 
 void bloom_free(struct bloom * bloom)
 {
