@@ -1,5 +1,5 @@
 #!/bin/bash
-clang -Ofast -Wall -o indexer      \
+gcc -Ofast -Wall -o indexer      \
 -I./libbloom -I./libbloom/murmur2  \
 -D __linux__                       \
 indexer.c                          \
