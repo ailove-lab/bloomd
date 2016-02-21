@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
     fill_bloom_filters();
     timer_stop();
 
-    print_blooms();
+    // print_blooms();
 
     if(argc >= 3) {
         fprintf(stderr, "//// TEST ////\n");
