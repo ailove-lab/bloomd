@@ -1,9 +1,5 @@
 #!/bin/bash
-<<<<<<< HEAD
-clang -Ofast -Wall -o indexer \
-=======
 clang -Ofast -Wall -o indexer      \
->>>>>>> c1ee0a6388f37f74cafce55b43509061e7e7b8e8
 -I./libbloom -I./libbloom/murmur2  \
 -D __linux__                       \
 indexer.c                          \
