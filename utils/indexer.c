@@ -77,6 +77,7 @@ static void integrate_counters();
 static void print_segments();
 static void allocate_bloom_filters();
 static void fill_bloom_filters();
+static void save_blooms();
 static void print_blooms();
 
 // static void test_bloom(void *data, long i, int tid);
@@ -139,6 +140,7 @@ int main(int argc, char *argv[]) {
     fill_bloom_filters();
     timer_stop();
 
+    save_blooms();
     // print_blooms();
 
     if(argc >= 3) {
@@ -449,6 +451,18 @@ static void print_blooms() {
     }
 }
 
+// safe blooms
+static void save_blooms() {
+    for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+        if(kh_exist(seg_bloom, ki)) {
+               struct bloom *bloom = kh_value(seg_bloom, ki);
+               char *seg = (char*) kh_key(seg_bloom, ki);
+               char filename[128];
+               sprintf(filename,"./blooms/%s", seg);
+               bloom_save(bloom, filename);
+        }
+    }
+}
 
   /////////////
  /// TESTS ///

@@ -168,10 +168,10 @@ void bloom_print(struct bloom * bloom);
  *     bloom    - Pointer to an allocated struct bloom (see above).
  *     filename - Filename
  *
- * Return: none
+ * Return: status - 0: ok, -1: fail
  *
  */
-void bloom_save(struct bloom * bloom, char * filename);
+int bloom_save(struct bloom * bloom, char * filename);
 
 /** ***************************************************************************
  * Load saved filter from fs
@@ -181,10 +181,10 @@ void bloom_save(struct bloom * bloom, char * filename);
  *     bloom    - Pointer to an allocated struct bloom (see above).
  *     filename - Filename
  *
- * Return: none
+ * Return: status - 0: ok, -1: fail
  *
  */
-void bloom_load(struct bloom * bloom, char * filename);
+int bloom_load(struct bloom * bloom, char * filename);
 
 
 /** ***************************************************************************
