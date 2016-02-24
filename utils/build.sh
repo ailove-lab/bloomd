@@ -1,19 +1,19 @@
 #!/bin/bash
 
-clang -O0 -g3 -Wall -std=c99 -o indexer-cuckoo         \
--I./cuckoo/libcuckoofilter/include           \
-./cuckoo/libcuckoofilter/src/cuckoo_filter.c \
-indexer-cuckoo.c                             \
+#clang -O0 -g3 -Wall -std=c99 -o indexer-cuckoo         \
+#-I./cuckoo/libcuckoofilter/include           \
+#./cuckoo/libcuckoofilter/src/cuckoo_filter.c \
+#indexer-cuckoo.c                             \
 
-# clang -Ofast -Wall -o indexer      \
-# -I./libbloom -I./libbloom/murmur2  \
-# -D __linux__                       \
-# indexer.c                          \
-# kthread.c dstr.c timer.c map.c     \
-# ./libbloom/bloom.c                 \
-# ./libbloom/linux.c                 \
-# ./libbloom/murmur2/MurmurHash2.c   \
-# -pthread -lm
+clang -Ofast -Wall -o indexer      \
+-I./libbloom -I./libbloom/murmur2  \
+-D __linux__                       \
+indexer.c                          \
+kthread.c dstr.c timer.c map.c     \
+./libbloom/bloom.c                 \
+./libbloom/linux.c                 \
+./libbloom/murmur2/MurmurHash2.c   \
+-pthread -lm
 
 # clang -Ofast -Wall -o test_bloom_load \
 # -I./libbloom -I./libbloom/murmur2  \
