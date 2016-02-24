@@ -1,6 +1,6 @@
 #!/bin/bash
 
-clang -O0 -g3 -Wall -std=c99 -o indexer-cuckoo         \
+gcc -O0 -g3 -Wall -std=c99 -o indexer-cuckoo         \
 -I./cuckoo/libcuckoofilter/include           \
 ./cuckoo/libcuckoofilter/src/cuckoo_filter.c \
 indexer-cuckoo.c                             \
