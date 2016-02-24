@@ -17,6 +17,8 @@ int main(int argc, char **argv) {
         int s = bloom_check(&bloom, key, strlen(key)-1);
         if(s) printf("%s", key);
     }
+    if(key) free(key);
+    
     bloom_free(&bloom);
 }
 

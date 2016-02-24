@@ -13,7 +13,7 @@ KHASH_MAP_INIT_STR(key_int_hm, unsigned long); // key -> int
 khash_t(key_int_hm) *seg_cnt;                  // seg -> counter
 
 void raw_line_parser(char *line);
-void print_stat();
+void stat_print();
 void free_keys();
 
   //////////
@@ -26,11 +26,10 @@ int main(int argc, char *argv[]) {
 
     char *line = NULL;
     size_t len = 0;
-
     while (getline(&line, &len, stdin) != -1) raw_line_parser(line);
     free(line);
 
-    print_stat();
+    stat_print();
 
     free_keys();
     kh_destroy(key_int_hm, seg_cnt);
@@ -82,7 +81,7 @@ void raw_line_parser(char *line) {
 }
 
 // Print statistic
-void print_stat() {
+void stat_print() {
     // segment counters
     for (khiter_t ki=kh_begin(seg_cnt); ki!=kh_end(seg_cnt); ++ki) {
         if (kh_exist(seg_cnt, ki)) {
