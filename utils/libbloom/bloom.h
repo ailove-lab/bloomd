@@ -64,6 +64,12 @@ struct bloom
   int ready;
 };
 
+// murmur cache
+typedef struct {
+  unsigned int a;
+  unsigned int b;
+} murmur_t;
+
 
 /** ***************************************************************************
  * Initialize the bloom filter for use.
@@ -202,6 +208,9 @@ int bloom_load(struct bloom * bloom, char * filename);
  */
 void bloom_free(struct bloom * bloom);
 
+
+void bloom_get_murmur(const void *buffer, int len, murmur_t *murmur);
+int bloom_check_murmur(struct bloom *bloom, murmur_t *murmur);
 
 /** ***************************************************************************
  * Returns version string compiled into library.

@@ -266,11 +266,13 @@ static void reconstruct_key(void *rec_keys, long i, int tid) {
     char_vec_t *segs = ((rec_keys_t*)rec_keys)->segs;
     // printf("%p %p\n", keys, segs);
     char *key = (char*) kv_A(keys, i);
+    murmur_t murmur = {0, 0};
+    bloom_get_murmur(key, strlen(key), &murmur);
     for(khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
         if(kh_exist(seg_bloom, ki)) {
             struct bloom *b = kh_value(seg_bloom, ki);
             char *seg = (char*) kh_key(seg_bloom, ki);
-            int s = bloom_check(b, key, strlen(key));
+            int s = bloom_check_murmur(b, &murmur);
             if(s) kv_push(char*, segs[i], seg);
         }
     }
