@@ -77,8 +77,8 @@ static void integrate_counters();
 static void print_segments();
 static void allocate_bloom_filters();
 static void fill_bloom_filters();
-static void save_blooms();
 static void print_blooms();
+static void save_blooms();
 
 // static void test_bloom(void *data, long i, int tid);
 
@@ -140,8 +140,8 @@ int main(int argc, char *argv[]) {
     fill_bloom_filters();
     timer_stop();
 
-    save_blooms();
-    // print_blooms();
+    if(0) save_blooms();
+    if(0) print_blooms();
 
     if(argc >= 3) {
         fprintf(stderr, "//// TEST ////\n");
@@ -272,6 +272,7 @@ static void reconstruct_key(void *rec_keys, long i, int tid) {
         if(kh_exist(seg_bloom, ki)) {
             struct bloom *b = kh_value(seg_bloom, ki);
             char *seg = (char*) kh_key(seg_bloom, ki);
+            // int s = bloom_check(b, key, strlen(key));
             int s = bloom_check_murmur(b, &murmur);
             if(s) kv_push(char*, segs[i], seg);
         }

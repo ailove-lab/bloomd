@@ -5,6 +5,7 @@
 #./cuckoo/libcuckoofilter/src/cuckoo_filter.c \
 #indexer-cuckoo.c                             \
 
+# clang -pg -Wall -o indexer         \
 clang -Ofast -Wall -o indexer      \
 -I./libbloom -I./libbloom/murmur2  \
 -D __linux__                       \
