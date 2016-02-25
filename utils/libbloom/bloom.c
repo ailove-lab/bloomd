@@ -166,7 +166,7 @@ static void setup_buckets(struct bloom * bloom, unsigned int cache_size)
 }
 
 
-int bloom_init_size(struct bloom * bloom, int entries, double error,
+int bloom_init_size(struct bloom * bloom, unsigned long entries, double error,
                     unsigned int cache_size)
 {
   bloom->ready = 0;
@@ -183,7 +183,7 @@ int bloom_init_size(struct bloom * bloom, int entries, double error,
   bloom->bpe = -(num / denom);
 
   double dentries = (double)entries;
-  bloom->bits = (int)(dentries * bloom->bpe);
+  bloom->bits = (unsigned long)(dentries * bloom->bpe);
 
   if (bloom->bits % 8) {
     bloom->bytes = (bloom->bits / 8) + 1;
@@ -197,7 +197,7 @@ int bloom_init_size(struct bloom * bloom, int entries, double error,
 
   bloom->bf = (unsigned char *)calloc(bloom->bytes, sizeof(unsigned char));
   if (bloom->bf == NULL) {
-    fprintf(stderr, "ALLOCATION ERROR\n ENTRIES %d BYTES %lu\n", entries, bloom->bytes );
+    fprintf(stderr, "ALLOCATION ERROR\n ENTRIES %lu BYTES %lu\n", entries, bloom->bytes );
     return 1;
   }
 
@@ -206,7 +206,7 @@ int bloom_init_size(struct bloom * bloom, int entries, double error,
 }
 
 
-int bloom_init(struct bloom * bloom, int entries, double error)
+int bloom_init(struct bloom * bloom, unsigned long entries, double error)
 {
   return bloom_init_size(bloom, entries, error, 0);
 }

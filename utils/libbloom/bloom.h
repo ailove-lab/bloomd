@@ -97,7 +97,7 @@ typedef struct {
  *     1 - on failure
  *
  */
-int bloom_init(struct bloom * bloom, int entries, double error);
+int bloom_init(struct bloom * bloom, unsigned long entries, double error);
 
 
 /** ***************************************************************************
@@ -114,7 +114,7 @@ int bloom_init(struct bloom * bloom, int entries, double error);
  * for cache_size.
  *
  */
-int bloom_init_size(struct bloom * bloom, int entries, double error,
+int bloom_init_size(struct bloom * bloom, unsigned long entries, double error,
                     unsigned int cache_size);
 
 
