@@ -143,7 +143,7 @@ void save_filters() {
             struct bloom *bloom = kh_value(seg_bloom, ki);
             sprintf(filename, "./blooms/%d", key);
             timer_start();
-            if (bloom_save(bloom, filename) != 0) fprintf(stderr, "ERR ");
+            if (bloom != NULL && bloom_save(bloom, filename) != 0) fprintf(stderr, "ERR ");
             timer_stop();
         }
     }
