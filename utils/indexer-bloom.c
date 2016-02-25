@@ -61,7 +61,7 @@ int init_bloom(char *filename) {
         int ret;
         khiter_t ki = kh_put(key_bloom_hm, seg_bloom, seg, &ret);
         if(ret == 1) { // new
-            struct bloom *bloom = (struct bloom*) malloc(sizeof(struct bloom));
+            struct bloom *bloom = (struct bloom*) calloc(1, sizeof(struct bloom));
             sprintf(filtername,"./blooms/%d", seg);
             timer_start();
             if(bloom_load(bloom, filtername) != 0) {
