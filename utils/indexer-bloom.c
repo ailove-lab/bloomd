@@ -64,14 +64,14 @@ int init_bloom(char *filename) {
             sprintf(filtername,"./blooms/%d", seg);
             timer_start();
             if(bloom_load(bloom, filtername) != 0) {
-                printf("Can't load %d, create new filter\n", seg);
+                fprintf(stderr, "Can't load %d, create new filter\n", seg);
                 if(bloom_init(bloom, counter, 0.01) != 0) {
                     fprintf(stderr, "ERROR CREATING FILTER %d\n", seg);
                     continue;
                 } else {
                     fprintf(stderr, "%d = %d (%p)\n", seg, counter, bloom);
                 }
-            } else printf("Load ok %d\n", seg);
+            } else fprintf(stderr, "Load ok %d\n", seg);
             timer_stop();
             kh_value(seg_bloom, ki) = bloom;
         };
