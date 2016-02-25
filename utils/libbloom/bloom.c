@@ -197,7 +197,7 @@ int bloom_init_size(struct bloom * bloom, int entries, double error,
 
   bloom->bf = (unsigned char *)calloc(bloom->bytes, sizeof(unsigned char));
   if (bloom->bf == NULL) {
-    fprintf(stderr, "ALLOCATION ERROR\n ENTRIES %d BYTES %d\n", entries, bloom->bytes );
+    fprintf(stderr, "ALLOCATION ERROR\n ENTRIES %d BYTES %lu\n", entries, bloom->bytes );
     return 1;
   }
 
@@ -229,9 +229,9 @@ void bloom_print(struct bloom * bloom)
   (void)printf("bloom at %p\n", (void *)bloom);
   (void)printf(" ->entries = %d\n", bloom->entries);
   (void)printf(" ->error = %f\n", bloom->error);
-  (void)printf(" ->bits = %d\n", bloom->bits);
+  (void)printf(" ->bits = %lu\n", bloom->bits);
   (void)printf(" ->bits per elem = %f\n", bloom->bpe);
-  (void)printf(" ->bytes = %d\n", bloom->bytes);
+  (void)printf(" ->bytes = %lu\n", bloom->bytes);
   (void)printf(" ->buckets = %u\n", bloom->buckets);
   (void)printf(" ->bucket_bytes = %u\n", bloom->bucket_bytes);
   (void)printf(" ->bucket_bytes_exponent = %u\n",

@@ -45,9 +45,9 @@ struct bloom
   // modify any of these.
   int entries;
   double error;
-  int bits;
-  int bytes;
-  int hashes;
+  unsigned long bits;
+  unsigned long bytes;
+  unsigned hashes;
 
   // Fields below are private to the implementation. These may go away or
   // change incompatibly at any moment. Client code MUST NOT access or rely
