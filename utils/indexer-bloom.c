@@ -48,6 +48,7 @@ int init_bloom(char *filename) {
     char filtername[256];
     seg_bloom = kh_init(key_bloom_hm);
     while ((read = getline(&line, &len, fp)) != -1) {
+        
         char *cnt = strchr(line, ' ');
         if (cnt == NULL) continue;
         *cnt = 0;
