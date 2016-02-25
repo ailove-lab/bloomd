@@ -3,6 +3,8 @@
 
 #include "timer.h"
 
+static struct timeval tm1;
+
 void timer_start() {
     gettimeofday(&tm1, NULL);
 }

@@ -553,8 +553,8 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
         char *d = l>=0 ? "\t" : "\n"; 
         strcat(send_buf, d);
         for(int j=0; j<=l; j++) {
+            if(j) strcat(send_buf, "/");
             strcat(send_buf, key_filter_mat[i][j]);
-            strcat(send_buf, "/");
         }
         strcat(send_buf, "\n");
     }
