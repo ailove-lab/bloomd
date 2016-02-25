@@ -65,16 +65,15 @@ int init_bloom(char *filename) {
             sprintf(filtername,"./blooms/%d", seg);
             timer_start();
             if(bloom_load(bloom, filtername) != 0) {
-                fprintf(stderr, "Can't load %d, create new filter\n", seg);
+                fprintf(stderr, "Create %d ", seg);
                 if(bloom_init(bloom, counter, 0.01) != 0) {
-                    fprintf(stderr, "ERROR CREATING FILTER %d\n", seg);
+                    fprintf(stderr, "ERROR CREATING FILTER %d %d\n", seg, counter);
                     free(bloom);
                     continue;
-                } else {
-                    fprintf(stderr, "%d = %d (%p) ready: %d\n", seg, counter, bloom, bloom->ready);
                 }
-            } else fprintf(stderr, "Load ok %d\n", seg);
+            } else fprintf(stderr, "Loaded %d ", seg);
             timer_stop();
+            fprintf(stderr, "%d = %d (%p) ready: %d\n", seg, counter, bloom, bloom->ready);
             kh_value(seg_bloom, ki) = bloom;
         };
     }
@@ -135,12 +134,12 @@ void raw_line_parser(char *line) {
 }
 
 void save_filters() {
-    fprintf(stderr, "Save bloom filters\n");
+    fprintf(stderr, "/// SAVE FILTERS ///\n");
     char filename[256];
     for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
         if (kh_exist(seg_bloom, ki)) {
             int key = kh_key(seg_bloom, ki);
-            fprintf(stderr, "Save %d ", key);
+            fprintf(stderr, "Saved %d ", key);
             struct bloom *bloom = kh_value(seg_bloom, ki);
             sprintf(filename, "./blooms/%d", key);
             timer_start();
