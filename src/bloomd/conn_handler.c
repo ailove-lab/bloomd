@@ -457,10 +457,6 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
     // setup list node
     bloom_filter_list *node;
 
-    // Setup the buffers
-    char *key_buf[MULTI_OP_SIZE];
-    char result_buf[MULTI_OP_SIZE];
-
     // Scan all the keys
     char *key = args;
     int key_len = args_len;
@@ -474,8 +470,13 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
     node = head->head;
     while(node) { filters_count++; node = node->next; }
     
+    // count keys    
     int keys_count = 1;
     for(int i=0; i<args_len; i++) if(args[i] == ' ') keys_count++;
+
+    // Setup the buffers
+    char *key_buf[keys_count];
+    char result_buf[keys_count];
     
     // result matrix
     char *key_filter_mat[keys_count][filters_count];
@@ -543,24 +544,28 @@ static void handle_get_cmd(bloom_conn_handler *handle, char *args, int args_len)
     }
 
     // send key filters
-    char send_buf[2048] = {0};
+    int buf_len = 1024*1024;
+    char *send_buf = (char*) malloc(buf_len);
+    
     for(int i=0; i<keys_count; i++) {
         strcat(send_buf, key_names[i]);
         int l = key_filter_len[i]-1;
-        strcat(send_buf, l>=0 ? "\t" : "\n");
+        char *d = l>=0 ? "\t" : "\n"; 
+        strcat(send_buf, d);
         for(int j=0; j<=l; j++) {
             strcat(send_buf, key_filter_mat[i][j]);
-            strcat(send_buf, j!=l ? "/" : "\n");
+            strcat(send_buf, "/");
         }
+        strcat(send_buf, "\n");
     }
 
     handle_client_resp(handle->conn, send_buf, strlen(send_buf));
-    
     // Respond
     handle_client_resp(handle->conn, (char*)DONE_RESP, DONE_RESP_LEN);
 
     // Cleanup
     filtmgr_cleanup_list(head);
+    free(send_buf);
 }
 
 
