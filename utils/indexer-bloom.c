@@ -55,7 +55,7 @@ int init_bloom(char *filename) {
         cnt++;
         
         int seg = atoi(line); 
-        int counter = atoi(cnt);
+        int counter = atol(cnt);
         if (!seg || !counter) continue;
         // if(counter<50) continue;
         int ret;

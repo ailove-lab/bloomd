@@ -197,6 +197,7 @@ int bloom_init_size(struct bloom * bloom, int entries, double error,
 
   bloom->bf = (unsigned char *)calloc(bloom->bytes, sizeof(unsigned char));
   if (bloom->bf == NULL) {
+    fprintf(stderr, "ALLOCATION ERROR\n ENTRIES %d BYTES %d\n", entries, bloom->bytes );
     return 1;
   }
 
