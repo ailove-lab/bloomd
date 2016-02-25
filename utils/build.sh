@@ -20,7 +20,7 @@ clang -Ofast -Wall -o indexer-bloom \
 -I./libbloom -I./libbloom/murmur2   \
 -D __linux__                        \
 indexer-bloom.c                     \
-kthread.c dstr.c timer.c map.c      \
+kthread.c timer.c      \
 ./libbloom/bloom.c                  \
 ./libbloom/linux.c                  \
 ./libbloom/murmur2/MurmurHash2.c    \
