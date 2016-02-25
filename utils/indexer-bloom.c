@@ -122,7 +122,7 @@ void raw_line_parser(char *line) {
             fprintf(stderr, "missing %d filter\n", seg);
         } else {
             struct bloom *bloom = (struct bloom*) kh_value(seg_bloom, ki);
-            fprintf(stderr, "%d (%p) << %s (%lu)\n", seg, bloom, line, strlen(line));
+            // fprintf(stderr, "%d (%p) << %s (%lu)\n", seg, bloom, line, strlen(line));
         }
 
         // next token
