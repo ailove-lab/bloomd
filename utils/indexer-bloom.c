@@ -57,10 +57,10 @@ int init_bloom(char *filename) {
         int seg = atoi(line); 
         int counter = atoi(cnt);
         if (!seg || !counter) continue;
-        if(counter<50) continue;
+        // if(counter<50) continue;
         int ret;
         khiter_t ki = kh_put(key_bloom_hm, seg_bloom, seg, &ret);
-        if(ret == 1) {         // new
+        if(ret == 1) { // new
             struct bloom *bloom = (struct bloom*) malloc(sizeof(struct bloom));
             sprintf(filtername,"./blooms/%d", seg);
             timer_start();
@@ -68,9 +68,10 @@ int init_bloom(char *filename) {
                 fprintf(stderr, "Can't load %d, create new filter\n", seg);
                 if(bloom_init(bloom, counter, 0.01) != 0) {
                     fprintf(stderr, "ERROR CREATING FILTER %d\n", seg);
+                    free(bloom);
                     continue;
                 } else {
-                    fprintf(stderr, "%d = %d (%p)\n", seg, counter, bloom);
+                    fprintf(stderr, "%d = %d (%p) ready: %d\n", seg, counter, bloom, bloom->ready);
                 }
             } else fprintf(stderr, "Load ok %d\n", seg);
             timer_stop();
@@ -154,8 +155,10 @@ void cleanup() {
     for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
         if (kh_exist(seg_bloom, ki)) {
             struct bloom *bloom = kh_value(seg_bloom, ki);
-            bloom_free(bloom);
-            free(bloom);
+            if(bloom!=NULL) {
+                bloom_free(bloom);
+                free(bloom);
+            }
         }
     }
     kh_destroy(key_bloom_hm, seg_bloom);
