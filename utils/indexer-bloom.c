@@ -123,7 +123,10 @@ void raw_line_parser(char *line) {
         } else {
             struct bloom *bloom = (struct bloom*) kh_value(seg_bloom, ki);
             // fprintf(stderr, "%d (%p) << %s (%lu)\n", seg, bloom, line, strlen(line));
-            bloom_add(bloom, line, strlen(line));
+            if (bloom != NULL)
+                bloom_add(bloom, line, strlen(line));
+            else 
+                fprintf(stderr, "Filter %d not initialized!\n", seg);
         }
 
         // next token
