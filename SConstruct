@@ -33,7 +33,7 @@ bloom_libs = ["pthread", bloom, murmur, inih, spooky, "m"]
 if plat == 'Linux':
    bloom_libs.append("rt")
 
-bloomd = envbloomd_with_err.Program('bloomd', objs + ["src/bloomd/bloomd.c"], LIBS=bloom_libs)
+bloomd = envbloomd_without_err.Program('bloomd', objs + ["src/bloomd/bloomd.c"], LIBS=bloom_libs)
 
 if plat == "Darwin":
     bloomd_test = envbloomd_without_err.Program('test_bloomd_runner', objs + Glob("tests/bloomd/runner.c"), LIBS=bloom_libs + ["check"])
