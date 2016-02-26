@@ -16,7 +16,7 @@
 # ./libbloom/murmur2/MurmurHash2.c   \
 # -pthread -lm
 
-clang -O0 -g -Wall -o indexer-bloom \
+clang -Ofast -Wall -o indexer-bloom \
 -I./libbloom -I./libbloom/murmur2   \
 -D __linux__                        \
 indexer-bloom.c                     \
