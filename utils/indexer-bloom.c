@@ -89,10 +89,11 @@ void index_pipe() {
     char *line = NULL;
     size_t len = 0;
 
-    fprintf(stderr, "\n/// SAVE FILTERS START///\n");
+    fprintf(stderr, "\n/// INDEXING START ///\n");
     timer_start();
     while (getline(&line, &len, stdin) != -1) raw_line_parser(line);
     timer_stop();
+    fprintf(stderr, "\n/// INDEXING END ///\n");
     free(line);
 
 }
