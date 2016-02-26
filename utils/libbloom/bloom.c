@@ -31,8 +31,8 @@ unsigned detect_bucket_size(unsigned fallback_size);
 #endif
 
 
-static int test_bit_set_bit(unsigned char * buf, unsigned int x, int set_bit) {
-
+static inline int test_bit_set_bit(unsigned char * buf, unsigned int x, int set_bit) {
+  
   register uint32_t * word_buf = (uint32_t *)buf;
   register unsigned int offset = x >> 5;
   register uint32_t word = word_buf[offset];
@@ -48,9 +48,17 @@ static int test_bit_set_bit(unsigned char * buf, unsigned int x, int set_bit) {
   }
 }
 
+//static inline void set_bit(unsigned char * buf, unsigned int x) {
+//  register uint32_t * word_buf = (uint32_t *)buf;
+//  register unsigned int offset = x >> 5;
+//  register uint32_t word = word_buf[offset];
+//  register unsigned int mask = 1 << (x % 32);
+//  word_buf[offset] = word | mask;
+//}
+
 static int bloom_check_add(struct bloom * bloom,
-                           const void * buffer, int len, int add)
-{
+                           const void * buffer, int len, int add) {
+
   if (bloom->ready == 0) {
     (void)printf("bloom at %p not initialized!\n", (void *)bloom);
     return -1;
