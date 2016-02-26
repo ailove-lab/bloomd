@@ -31,8 +31,8 @@ unsigned detect_bucket_size(unsigned fallback_size);
 #endif
 
 
-static int test_bit_set_bit(unsigned char * buf, unsigned int x, int set_bit)
-{
+static int test_bit_set_bit(unsigned char * buf, unsigned int x, int set_bit) {
+
   register uint32_t * word_buf = (uint32_t *)buf;
   register unsigned int offset = x >> 5;
   register uint32_t word = word_buf[offset];
@@ -127,8 +127,37 @@ int bloom_check_murmur(struct bloom * bloom, murmur_t *murmur) {
   return 0;
 }
 
-static void setup_buckets(struct bloom * bloom, unsigned int cache_size)
-{
+int bloom_add_murmur(struct bloom * bloom, murmur_t *murmur) {
+  if (bloom->ready == 0) {
+    (void)printf("bloom at %p not initialized!\n", (void *)bloom);
+    return -1;
+  }
+
+  int hits = 0;
+  register unsigned int a = murmur->a;
+  register unsigned int b = murmur->b;
+  register unsigned int x;
+  register unsigned int i;
+
+  unsigned bucket_index = (a % bloom->buckets);
+  unsigned char * bucket_ptr =
+    (bloom->bf + (bucket_index << bloom->bucket_bytes_exponent));
+
+  for (i = 0; i < bloom->hashes; i++) {
+    x = (a + i*b) & bloom->bucket_bits_fast_mod_operand;
+    if (test_bit_set_bit(bucket_ptr, x, 1)) {
+      hits++;
+    }
+  }
+
+  if (hits == bloom->hashes) {
+    return 1; // 1 == element already in (or collision)
+  }
+
+  return 0;
+}
+
+static void setup_buckets(struct bloom * bloom, unsigned int cache_size) {
   // If caller passed a non-zero cache_size, use it as given, otherwise
   // either compute it or use built-in default
 

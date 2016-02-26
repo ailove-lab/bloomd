@@ -211,6 +211,7 @@ void bloom_free(struct bloom * bloom);
 
 void bloom_get_murmur(const void *buffer, int len, murmur_t *murmur);
 int bloom_check_murmur(struct bloom *bloom, murmur_t *murmur);
+int bloom_add_murmur  (struct bloom *bloom, murmur_t *murmur);
 
 /** ***************************************************************************
  * Returns version string compiled into library.

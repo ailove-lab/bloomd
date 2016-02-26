@@ -88,7 +88,11 @@ void index_pipe() {
 
     char *line = NULL;
     size_t len = 0;
+
+    fprintf(stderr, "\n/// SAVE FILTERS START///\n");
+    timer_start();
     while (getline(&line, &len, stdin) != -1) raw_line_parser(line);
+    timer_stop();
     free(line);
 
 }
@@ -112,6 +116,10 @@ void raw_line_parser(char *line) {
     *seg = 0;                    // data to flags/segments
     seg++;
 
+    // cache murmur hashes
+    murmur_t murmur;
+    bloom_get_murmur(line, strlen(line), &murmur);
+
     // iterate through segments
     char *s, *sv;
     s = strtok_r(seg, "/", &sv);
@@ -121,12 +129,13 @@ void raw_line_parser(char *line) {
         int seg = atoi(s);
         ki = kh_get(key_bloom_hm, seg_bloom, seg);
         if(ki == kh_end(seg_bloom)) {
-            fprintf(stderr, "missing %d filter\n", seg);
+            fprintf(stderr, "\nMISSING FILTER %d \n", seg);
         } else {
             struct bloom *bloom = (struct bloom*) kh_value(seg_bloom, ki);
             // fprintf(stderr, "%d (%p) << %s (%lu)\n", seg, bloom, line, strlen(line));
-            if (bloom != NULL)
-                bloom_add(bloom, line, strlen(line));
+            if (bloom != NULL){
+                bloom_add_murmur(bloom, &murmur);
+            }
         }
 
         // next token
