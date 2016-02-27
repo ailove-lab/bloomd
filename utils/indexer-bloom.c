@@ -92,10 +92,10 @@ void index_pipe() {
     fprintf(stderr, "\n/// INDEXING START ///\n");
     timer_start();
     while (getline(&line, &len, stdin) != -1) raw_line_parser(line);
-    timer_stop();
     fprintf(stderr, "\n/// INDEXING END ///\n");
-    free(line);
-
+    timer_stop();
+    if(line != NULL) free(line);
+    
 }
 
 // parse raw string

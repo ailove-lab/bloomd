@@ -103,7 +103,7 @@ inline static int test_bit(unsigned char * buf, unsigned int x) {
   else return 0;
 }
 
-int bloom_check_murmur(struct bloom * bloom, murmur_t *murmur) {
+int bloom_check_murmur(struct bloom * bloom, murmur_t * murmur) {
 
   if (bloom->ready == 0) {
     (void)printf("bloom at %p not initialized!\n", (void *)bloom);
