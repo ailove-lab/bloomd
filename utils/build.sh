@@ -26,10 +26,10 @@
 # ./libbloom/murmur2/MurmurHash2.c    \
 # -pthread -lm
 
-clang -Ofast -Wall -o query-bloom \
+clang -Ofast -Wall -o query-bloom   \
 -I./libbloom -I./libbloom/murmur2   \
 -D __linux__                        \
-query-bloom.c                     \
+query-bloom.c                       \
 kthread.c timer.c                   \
 ./libbloom/bloom.c                  \
 ./libbloom/linux.c                  \

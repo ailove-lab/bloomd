@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <pthread.h>
 
 #include "bloom.h"
 #include "khash.h"
@@ -11,17 +13,38 @@
 KHASH_MAP_INIT_INT(key_bloom_hm, struct bloom*); // key -> filter*
 khash_t(key_bloom_hm) *seg_bloom;
 
+// THREADS num
+int nthr;
+typedef struct {
+    int tid;
+} th_param_t;
+
 void load_filters();
 int  usage();
+
 void query_keys();
+void* query_worker(void* par);
 void query_key(char* key);
 void cleanup();
 
+  ////////////
+ /// MAIN ///
+////////////
+
 int main(int argc, char **argv) {
+
+    nthr = sysconf(_SC_NPROCESSORS_ONLN);
+    fprintf(stderr, "PROC: %d\n", nthr);
+
     load_filters();
     query_keys();
     cleanup();
+
 }
+
+  /////////////////
+ /// FUNCTIONS ///
+/////////////////
 
 void load_filters() {
    
@@ -56,44 +79,70 @@ void load_filters() {
 
         (void) closedir (dp);
     } else fprintf(stderr, "Couldn't open the directory!");
+
     fprintf(stderr, "\n/// LOAD END ///\n");
     timer_stop();
 }
 
-void query_keys() {
 
-    char *line = NULL;
-    size_t len = 0;
+void query_keys() {
 
     fprintf(stderr, "\n/// QUERY START ///\n");
     timer_start();
-    while (getline(&line, &len, stdin) != -1) query_key(line);
+    pthread_t threads[nthr];
+    th_param_t params[nthr];
+
+    for(int tid=0; tid<nthr; tid++) {
+        params[tid] = (th_param_t){tid};
+        pthread_create(&threads[tid], NULL, query_worker, &params[tid]);
+    }
+
+    for(int tid=0; tid<nthr; tid++) {
+        pthread_join(threads[tid], NULL);
+    }
+
+    pthread_exit(NULL);
     fprintf(stderr, "\n/// QUERY END ///\n");
     timer_stop();
 
-    if(line!=NULL) free(line);
 }
 
-void query_key(char* key) {
-    char *nl = strchr(key, '\n');
-    if(nl != NULL) *nl = 0;
-    else return;
+void* query_worker(void* par) {
+    
+    th_param_t *params = (th_param_t*) par;
 
-    printf("%s\t", key);
+    char *line = NULL;
+    size_t len = 0;
+    char result[1024] = {0};
+    size_t rlen = 0;
 
-    murmur_t murmur = {0, 0};
-    bloom_get_murmur(key, strlen(key), &murmur);
-    for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
-        if (kh_exist(seg_bloom, ki)) {
-            struct bloom *bloom = kh_value(seg_bloom, ki);
-            if(bloom_check_murmur(bloom, &murmur)) 
-                printf("%d/", kh_key(seg_bloom, ki));
+    while (getline(&line, &len, stdin) != -1) {
+
+        char *nl = strchr(line, '\n');
+        if(nl != NULL) *nl = 0;
+        else continue;
+        
+        rlen = 0; // Reset buffer start
+        rlen += sprintf(result, "%d: %s\t",params->tid, line);
+
+        murmur_t murmur = {0, 0};
+        bloom_get_murmur(line, strlen(line), &murmur);
+        for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
+            if (kh_exist(seg_bloom, ki)) {
+                struct bloom *bloom = kh_value(seg_bloom, ki);
+                if(bloom_check_murmur(bloom, &murmur)) 
+                    rlen += sprintf(result+rlen, "%d/", kh_key(seg_bloom, ki));
+            }
         }
-    }
-    printf("\n");
+        fprintf(stdout, "%s\n", result);
+
+    } 
+    if(line!=NULL) free(line);
+    return NULL;
 }
 
 void cleanup() {
+
     fprintf(stderr, "\n/// CLEAN UP ///\n");
     timer_start();
     for (khiter_t ki=kh_begin(seg_bloom); ki!=kh_end(seg_bloom); ++ki) {
