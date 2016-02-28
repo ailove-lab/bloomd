@@ -16,15 +16,15 @@
 # ./libbloom/murmur2/MurmurHash2.c   \
 # -pthread -lm
 
-# clang -Ofast -Wall -o indexer-bloom \
-# -I./libbloom -I./libbloom/murmur2   \
-# -D __linux__                        \
-# indexer-bloom.c                     \
-# kthread.c timer.c                   \
-# ./libbloom/bloom.c                  \
-# ./libbloom/linux.c                  \
-# ./libbloom/murmur2/MurmurHash2.c    \
-# -pthread -lm
+clang -Ofast -Wall -o indexer-bloom \
+-I./libbloom -I./libbloom/murmur2   \
+-D __linux__                        \
+indexer-bloom.c                     \
+kthread.c timer.c                   \
+./libbloom/bloom.c                  \
+./libbloom/linux.c                  \
+./libbloom/murmur2/MurmurHash2.c    \
+-pthread -lm
 
 clang -Ofast -Wall -o query-bloom   \
 -I./libbloom -I./libbloom/murmur2   \
@@ -35,6 +35,15 @@ kthread.c timer.c                   \
 ./libbloom/linux.c                  \
 ./libbloom/murmur2/MurmurHash2.c    \
 -pthread -lm
+ 
+# clang -Ofast -Wall -o bloom-info    \
+# -I./libbloom -I./libbloom/murmur2   \
+# -D __linux__                        \
+# bloom-info.c                        \
+# ./libbloom/bloom.c                  \
+# ./libbloom/linux.c                  \
+# ./libbloom/murmur2/MurmurHash2.c    \
+# -lm
 
 # clang -Ofast -Wall -o test_bloom_load \
 # -I./libbloom -I./libbloom/murmur2  \
