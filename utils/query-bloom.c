@@ -101,9 +101,10 @@ void query_keys() {
         pthread_join(threads[tid], NULL);
     }
 
-    pthread_exit(NULL);
     fprintf(stderr, "\n/// QUERY END ///\n");
     timer_stop();
+    
+    // pthread_exit(NULL);
 
 }
 
@@ -113,7 +114,7 @@ void* query_worker(void* par) {
 
     char *line = NULL;
     size_t len = 0;
-    char result[1024] = {0};
+    char result[4096] = {0};
     size_t rlen = 0;
 
     while (getline(&line, &len, stdin) != -1) {
