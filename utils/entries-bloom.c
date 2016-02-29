@@ -19,7 +19,7 @@ int main(int argc, char **argv) {
     dp = opendir ("./blooms/");
     if (dp != NULL) {
         while((ep=readdir(dp)) != NULL) if(ep->d_name[0] != '.') {
-            printf("\n%s\t", ep->d_name);
+            printf("%s\t", ep->d_name);
             sprintf(filtername,"./blooms/%s", ep->d_name);
             FILE * fd = fopen(filtername, "rb");
             if(fd != NULL) {
