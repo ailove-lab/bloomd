@@ -19,12 +19,12 @@ int main(int argc, char **argv) {
     dp = opendir ("./blooms/");
     if (dp != NULL) {
         while((ep=readdir(dp)) != NULL) if(ep->d_name[0] != '.') {
-            printf("%s\t", ep->d_name);
+            printf("%s", ep->d_name);
             sprintf(filtername,"./blooms/%s", ep->d_name);
             FILE * fd = fopen(filtername, "rb");
             if(fd != NULL) {
               fread(&bloom, sizeof(struct bloom), 1, fd);
-              printf("%d\n", bloom.entries);
+              printf("\t%lu\t%lu\n", bloom.insertions, bloom.collisions);
               fclose(fd);
             }
         }
