@@ -18,6 +18,7 @@ int main(int argc, char **argv) {
     dp = opendir ("./blooms/");
     if (dp != NULL) {
         while((ep=readdir(dp)) != NULL) if(ep->d_name[0] != '.') {
+            printf("\n%s\n---------------------\n", ep->d_name);
             sprintf(filtername,"./blooms/%s", ep->d_name);
             bloom_load_info(filtername);
         }
