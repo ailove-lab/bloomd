@@ -302,6 +302,16 @@ int bloom_load(struct bloom * bloom, char * filename) {
   return -1;
 }
 
+void bloom_load_info(char * filename) {
+  struct bloom bloom;
+  FILE * fd = fopen(filename, "rb");
+  if(fd != NULL) {
+    fread(&bloom, sizeof(struct bloom), 1, fd);
+    bloom_print(&bloom);
+    fclose(fd);
+  }
+}
+
 void bloom_free(struct bloom * bloom)
 {
   if (bloom->ready) {

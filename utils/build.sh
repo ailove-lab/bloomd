@@ -36,6 +36,15 @@ kthread.c timer.c                   \
 ./libbloom/murmur2/MurmurHash2.c    \
 -pthread -lm
  
+clang -Ofast -Wall -o info-bloom   \
+-I./libbloom -I./libbloom/murmur2   \
+-D __linux__                        \
+info-bloom.c                       \
+./libbloom/bloom.c                  \
+./libbloom/linux.c                  \
+./libbloom/murmur2/MurmurHash2.c    \
+-lm
+
 # clang -Ofast -Wall -o bloom-info    \
 # -I./libbloom -I./libbloom/murmur2   \
 # -D __linux__                        \

@@ -192,6 +192,17 @@ int bloom_save(struct bloom * bloom, char * filename);
  */
 int bloom_load(struct bloom * bloom, char * filename);
 
+/** ***************************************************************************
+ * Load only header from file
+ *
+ * Parameters:
+ * -----------
+ *     filename - Filename
+ *
+ * Return: none
+ *
+ */
+void bloom_load_info(char * filename);
 
 /** ***************************************************************************
  * Deallocate internal storage.
