@@ -83,9 +83,11 @@ static int bloom_check_add(struct bloom * bloom,
   }
 
   if (hits == bloom->hashes) {
+    bloom->collisions++;
     return 1;                // 1 == element already in (or collision)
   }
 
+  bloom->insertions++;
   return 0;
 }
 
@@ -159,9 +161,11 @@ int bloom_add_murmur(struct bloom * bloom, murmur_t *murmur) {
   }
 
   if (hits == bloom->hashes) {
+    bloom->collisions++;
     return 1; // 1 == element already in (or collision)
   }
 
+  bloom->insertions++;
   return 0;
 }
 
@@ -264,13 +268,15 @@ int bloom_add(struct bloom * bloom, const void * buffer, int len)
 void bloom_print(struct bloom * bloom)
 {
   (void)printf("bloom at %p\n", (void *)bloom);
-  (void)printf(" ->entries = %d\n", bloom->entries);
-  (void)printf(" ->error = %f\n", bloom->error);
-  (void)printf(" ->bits = %lu\n", bloom->bits);
+  (void)printf(" ->entries       = %d\n", bloom->entries);
+  (void)printf(" ->collisions    = %lu\n", bloom->collisions);
+  (void)printf(" ->insertions    = %lu\n", bloom->insertions);
+  (void)printf(" ->error         = %f\n", bloom->error);
+  (void)printf(" ->bits          = %lu\n", bloom->bits);
   (void)printf(" ->bits per elem = %f\n", bloom->bpe);
-  (void)printf(" ->bytes = %lu\n", bloom->bytes);
-  (void)printf(" ->buckets = %u\n", bloom->buckets);
-  (void)printf(" ->bucket_bytes = %u\n", bloom->bucket_bytes);
+  (void)printf(" ->bytes         = %lu\n", bloom->bytes);
+  (void)printf(" ->buckets       = %u\n", bloom->buckets);
+  (void)printf(" ->bucket_bytes  = %u\n", bloom->bucket_bytes);
   (void)printf(" ->bucket_bytes_exponent = %u\n",
                bloom->bucket_bytes_exponent);
   (void)printf(" ->bucket_bits_fast_mod_operand = 0%o\n",

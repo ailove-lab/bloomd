@@ -49,6 +49,9 @@ struct bloom
   unsigned long bytes;
   unsigned hashes;
 
+  unsigned long insertions;
+  unsigned long collisions;
+
   // Fields below are private to the implementation. These may go away or
   // change incompatibly at any moment. Client code MUST NOT access or rely
   // on these.

@@ -66,7 +66,7 @@ int init_bloom(char *filename) {
             sprintf(filtername,"./blooms/%d", seg);
             if(bloom_load(bloom, filtername) != 0) {
                 fprintf(stderr, "C %d ", seg);
-                if(bloom_init(bloom, counter, 0.000001) != 0) {
+                if(bloom_init(bloom, counter, 0.01) != 0) {
                     fprintf(stderr, "\nERROR CREATING FILTER %d %d\n", seg, counter);
                     free(bloom);
                     continue;
